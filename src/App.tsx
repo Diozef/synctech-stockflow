@@ -3,24 +3,45 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { BusinessProvider } from "@/contexts/BusinessContext";
+
+// Screens
+import { OnboardingScreen } from "@/screens/OnboardingScreen";
+import { ConfirmNicheScreen } from "@/screens/ConfirmNicheScreen";
+import { DashboardScreen } from "@/screens/DashboardScreen";
+import { ProductFormScreen } from "@/screens/ProductFormScreen";
+import { ProductsListScreen } from "@/screens/ProductsListScreen";
+import { MovementsScreen } from "@/screens/MovementsScreen";
+import { SettingsScreen } from "@/screens/SettingsScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <BusinessProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Onboarding Flow */}
+            <Route path="/" element={<OnboardingScreen />} />
+            <Route path="/confirm-niche" element={<ConfirmNicheScreen />} />
+            
+            {/* Main App */}
+            <Route path="/dashboard" element={<DashboardScreen />} />
+            <Route path="/products" element={<ProductsListScreen />} />
+            <Route path="/products/new" element={<ProductFormScreen />} />
+            <Route path="/movements" element={<MovementsScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
+            
+            {/* Fallback */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </BusinessProvider>
   </QueryClientProvider>
 );
 
