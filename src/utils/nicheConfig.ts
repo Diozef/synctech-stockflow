@@ -4,6 +4,11 @@ import { Shirt, Sparkles, Package } from 'lucide-react';
 // ====================================================
 // CONFIGURAÇÕES POR NICHO
 // ====================================================
+// 
+// Este arquivo centraliza TODAS as configurações específicas de cada nicho.
+// Qualquer ajuste de texto, labels ou campos deve ser feito aqui.
+//
+// ====================================================
 
 export interface NicheConfig {
   id: BusinessType;
@@ -12,8 +17,11 @@ export interface NicheConfig {
   description: string;
   gradient: string;
   color: string;
+  // Textos para tela de confirmação
   idealFor: string[];
+  benefits: string;
   features: string[];
+  // Labels do sistema
   labels: {
     product: string;
     products: string;
@@ -22,6 +30,7 @@ export interface NicheConfig {
     entry: string;
     exit: string;
   };
+  // Configuração de campos
   fields: {
     showSize: boolean;
     showColor: boolean;
@@ -29,6 +38,7 @@ export interface NicheConfig {
     showExpiration: boolean;
     showVariations: boolean;
   };
+  // Placeholders
   placeholders: {
     productName: string;
     productExamples: string[];
@@ -40,15 +50,17 @@ export const nicheConfigs: Record<NonNullable<BusinessType>, NicheConfig> = {
     id: 'moda',
     name: 'Moda & Acessórios',
     icon: Shirt,
-    description: 'Roupas, calçados, bolsas, bijuterias e acessórios em geral',
+    description: 'Roupas, calçados, bolsas e produtos com tamanhos e cores.',
     gradient: 'gradient-moda',
     color: 'niche-moda',
+    // Textos específicos para confirmação
     idealFor: [
-      'Vende roupas ou acessórios',
-      'Trabalha com variações de tamanho e cor',
-      'Precisa controlar estoque por variação',
-      'Faz vendas pelo Instagram ou WhatsApp',
+      'Vende roupas, calçados, bolsas ou acessórios',
+      'Trabalha com tamanhos e cores',
+      'Já perdeu vendas por falta de um tamanho específico',
+      'Vende pelo WhatsApp ou Instagram',
     ],
+    benefits: 'Você poderá controlar seu estoque por tamanho e cor, registrar vendas com poucos cliques e receber alertas quando algum tamanho estiver acabando.',
     features: [
       'Controle de tamanhos (P, M, G, GG...)',
       'Variações de cor por produto',
@@ -79,15 +91,17 @@ export const nicheConfigs: Record<NonNullable<BusinessType>, NicheConfig> = {
     id: 'cosmeticos',
     name: 'Cosméticos & Perfumaria',
     icon: Sparkles,
-    description: 'Maquiagens, perfumes, cremes, produtos de beleza e cuidados pessoais',
+    description: 'Maquiagem, perfumes e produtos de beleza por unidade.',
     gradient: 'gradient-cosmeticos',
     color: 'niche-cosmeticos',
+    // Textos específicos para confirmação
     idealFor: [
-      'Revende cosméticos ou perfumes',
-      'Trabalha com produtos que têm validade',
-      'Precisa controlar marcas e fornecedores',
-      'Faz vendas pelo WhatsApp ou Instagram',
+      'Vende maquiagem, perfumes ou produtos de beleza',
+      'Controla produtos por unidade',
+      'Precisa acompanhar validade',
+      'Quer evitar perdas por vencimento',
     ],
+    benefits: 'Você poderá acompanhar quantidades por produto, registrar saídas rapidamente e receber alertas de produtos com validade próxima.',
     features: [
       'Controle de validade dos produtos',
       'Organização por marca',
@@ -118,15 +132,17 @@ export const nicheConfigs: Record<NonNullable<BusinessType>, NicheConfig> = {
     id: 'geral',
     name: 'Produtos Gerais',
     icon: Package,
-    description: 'Qualquer tipo de produto sem necessidades especiais de controle',
+    description: 'Produtos variados sem tamanhos ou validade.',
     gradient: 'gradient-geral',
     color: 'niche-geral',
+    // Textos específicos para confirmação
     idealFor: [
       'Vende produtos variados',
-      'Não precisa de controles especiais',
-      'Quer um sistema simples e direto',
-      'Está começando a organizar o estoque',
+      'Não trabalha com tamanhos ou validade',
+      'Quer controle simples e rápido',
+      'Não quer sistemas complicados',
     ],
+    benefits: 'Você terá um controle simples de entradas e saídas, evitando perdas e sabendo exatamente o que você tem em estoque.',
     features: [
       'Cadastro simples e rápido',
       'Controle básico de quantidade',
