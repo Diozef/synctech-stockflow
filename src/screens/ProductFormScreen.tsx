@@ -144,17 +144,26 @@ export function ProductFormScreen() {
 
   return (
     <MobileLayout>
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6 animate-fade-in">
+      {/* ====================================================
+          CABEÇALHO PREMIUM
+          Título e subtítulo dinâmicos por nicho
+          ==================================================== */}
+      <div className="mb-8 animate-fade-in">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center justify-center w-10 h-10 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
         >
           <ChevronLeft className="w-5 h-5" />
+          <span className="text-sm">Voltar</span>
         </button>
-        <div>
-          <h1 className="text-xl font-bold">{config.labels.addProduct}</h1>
-          <p className="text-sm text-muted-foreground">Preencha os dados</p>
+        
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">Cadastrar produto</h1>
+          <p className="text-muted-foreground">
+            {businessType === 'moda' && 'Cadastre produtos com tamanhos e cores'}
+            {businessType === 'cosmeticos' && 'Cadastre produtos por unidade e validade'}
+            {businessType === 'geral' && 'Cadastre produtos de forma simples'}
+          </p>
         </div>
       </div>
 
@@ -447,7 +456,10 @@ export function ProductFormScreen() {
         )}
       </div>
 
-      {/* Submit Button */}
+      {/* ====================================================
+          AÇÃO PRINCIPAL + MICROCOPY
+          Botão de cadastro e texto de apoio
+          ==================================================== */}
       <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-6 pb-4 mt-8">
         <Button
           variant="hero"
@@ -456,9 +468,23 @@ export function ProductFormScreen() {
           onClick={handleSubmit}
         >
           <Check className="w-5 h-5 mr-2" />
-          Cadastrar {config.labels.product.toLowerCase()}
+          Salvar produto
         </Button>
+        
+        {/* Microcopy de apoio para reduzir fricção */}
+        <p className="text-center text-xs text-muted-foreground mt-3">
+          Você poderá editar essas informações depois.
+        </p>
       </div>
     </MobileLayout>
   );
 }
+
+// ====================================================
+// COMENTÁRIOS PARA MANUTENÇÃO FUTURA
+// ====================================================
+// - Este módulo define quando has_products passa a ser true
+// - Ajustes nos campos por nicho devem ser feitos aqui
+// - Lógica de banco será conectada futuramente
+// - Regras de validade estão vinculadas ao calendário
+// ====================================================
