@@ -49,6 +49,7 @@ interface BusinessContextType {
   addMovement: (movement: Omit<StockMovement, 'id' | 'date'>) => void;
   setMinStockAlert: (value: number) => void;
   canChangeBusinessType: () => boolean;
+  resetBusiness: () => void;
 }
 
 // ====================================================
@@ -131,6 +132,17 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ====================================================
+  // Reset do sistema (volta para onboarding)
+  // ====================================================
+  const resetBusiness = () => {
+    setBusinessTypeState(null);
+    setHasProducts(false);
+    setProducts([]);
+    setMovements([]);
+    setMinStockAlert(5);
+  };
+
   return (
     <BusinessContext.Provider value={{
       businessType,
@@ -145,6 +157,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       addMovement,
       setMinStockAlert,
       canChangeBusinessType,
+      resetBusiness,
     }}>
       {children}
     </BusinessContext.Provider>
