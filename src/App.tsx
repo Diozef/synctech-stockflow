@@ -12,6 +12,7 @@ import { DashboardScreen } from "@/screens/DashboardScreen";
 import { ProductFormScreen } from "@/screens/ProductFormScreen";
 import { ProductsListScreen } from "@/screens/ProductsListScreen";
 import { MovementsScreen } from "@/screens/MovementsScreen";
+import { ReportsScreen } from "@/screens/ReportsScreen";
 import { SettingsScreen } from "@/screens/SettingsScreen";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/products" element={<ProductsListScreen />} />
             <Route path="/products/new" element={<ProductFormScreen />} />
             <Route path="/movements" element={<MovementsScreen />} />
+            <Route path="/reports" element={<ReportsScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             
             {/* Fallback */}
