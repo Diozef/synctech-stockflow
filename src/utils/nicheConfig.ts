@@ -62,7 +62,7 @@ export const nicheConfigs: Record<NonNullable<BusinessType>, NicheConfig> = {
     ],
     benefits: 'Você poderá controlar seu estoque por tamanho e cor, registrar vendas com poucos cliques e receber alertas quando algum tamanho estiver acabando.',
     features: [
-      'Controle de tamanhos (P, M, G, GG...)',
+      'Controle de tamanhos (letras, numeração e calçados)',
       'Variações de cor por produto',
       'Estoque por combinação tamanho + cor',
       'Alertas de reposição por variação',

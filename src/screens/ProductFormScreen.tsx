@@ -28,7 +28,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 // ====================================================
 // FUNÇÃO: Cadastrar produtos conforme o tipo de negócio
 
-const SIZES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'];
+// ====================================================
+// SISTEMA DE TAMANHOS FLEXÍVEL
+// Suporta: letras (roupas), numeração (calças/shorts) e calçados
+// ====================================================
+const SIZE_CATEGORIES = {
+  letras: {
+    label: 'Letras (Roupas)',
+    sizes: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'],
+  },
+  numeracao: {
+    label: 'Numeração (Calças/Shorts)',
+    sizes: ['34', '36', '38', '40', '42', '44', '46', '48', '50', '52'],
+  },
+  calcados: {
+    label: 'Calçados',
+    sizes: ['33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45'],
+  },
+};
+
+type SizeCategoryKey = keyof typeof SIZE_CATEGORIES;
+
 const COLORS = [
   { name: 'Preto', value: '#000000' },
   { name: 'Branco', value: '#FFFFFF' },
@@ -62,6 +82,9 @@ export function ProductFormScreen() {
 
   // Variations for fashion
   const [variations, setVariations] = useState<Array<{ size: string; color: string; quantity: number }>>([]);
+  
+  // Size category for fashion (letras, numeracao, calcados)
+  const [sizeCategory, setSizeCategory] = useState<SizeCategoryKey>('letras');
 
   // Redirect if no business type
   React.useEffect(() => {
@@ -326,6 +349,24 @@ export function ProductFormScreen() {
             {/* Add Variation */}
             <Card>
               <CardContent className="p-4 space-y-3">
+                {/* Size Category Selector */}
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Tipo de tamanho</Label>
+                  <Select value={sizeCategory} onValueChange={(val) => {
+                    setSizeCategory(val as SizeCategoryKey);
+                    setSelectedSize(''); // Reset selected size when category changes
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(SIZE_CATEGORIES).map(([key, cat]) => (
+                        <SelectItem key={key} value={key}>{cat.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs text-muted-foreground mb-1 block">Tamanho</Label>
@@ -334,7 +375,7 @@ export function ProductFormScreen() {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SIZES.map((size) => (
+                        {SIZE_CATEGORIES[sizeCategory].sizes.map((size) => (
                           <SelectItem key={size} value={size}>{size}</SelectItem>
                         ))}
                       </SelectContent>
