@@ -180,12 +180,23 @@ export function DashboardScreen() {
               lowStockProducts.map((product) => (
                 <div 
                   key={product.id}
-                  className="flex items-start gap-3 p-4"
+                  className="flex items-center gap-3 p-4"
                 >
-                  <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0 bg-warning" />
-                  <p className="text-sm leading-relaxed">
-                    {product.name} — apenas {product.quantity} unidades
-                  </p>
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {product.photo_url ? (
+                      <img 
+                        src={product.photo_url} 
+                        alt={product.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Package className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{product.name}</p>
+                    <p className="text-xs text-warning">Apenas {product.quantity} unidades</p>
+                  </div>
                 </div>
               ))
             )}
@@ -222,25 +233,42 @@ export function DashboardScreen() {
                 return (
                   <div 
                     key={movement.id}
-                    className="flex items-start gap-3 p-4"
+                    className="flex items-center gap-3 p-4"
                   >
-                    <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                      movement.movement_type === 'entrada' ? "bg-success/10" : "bg-primary/10"
-                    )}>
-                      {movement.movement_type === 'entrada' ? (
-                        <ArrowDownRight className="w-4 h-4 text-success" />
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+                      {product?.photo_url ? (
+                        <img 
+                          src={product.photo_url} 
+                          alt={product?.name || 'Produto'} 
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
-                        <ArrowUpRight className="w-4 h-4 text-primary" />
+                        <Package className="w-5 h-5 text-muted-foreground" />
                       )}
+                      <div className={cn(
+                        "absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center border-2 border-background",
+                        movement.movement_type === 'entrada' ? "bg-success" : "bg-primary"
+                      )}>
+                        {movement.movement_type === 'entrada' ? (
+                          <ArrowDownRight className="w-2.5 h-2.5 text-primary-foreground" />
+                        ) : (
+                          <ArrowUpRight className="w-2.5 h-2.5 text-primary-foreground" />
+                        )}
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm leading-relaxed">
-                        {movement.movement_type === 'entrada' ? 'Entrada' : 'Saída'} — {product?.name || 'Produto'}
+                      <p className="text-sm font-medium truncate">
+                        {product?.name || 'Produto'}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDistanceToNow(new Date(movement.created_at), { addSuffix: true, locale: ptBR })}
+                      <p className="text-xs text-muted-foreground">
+                        {movement.movement_type === 'entrada' ? 'Entrada' : 'Saída'} • {formatDistanceToNow(new Date(movement.created_at), { addSuffix: true, locale: ptBR })}
                       </p>
+                    </div>
+                    <div className={cn(
+                      "text-sm font-semibold",
+                      movement.movement_type === 'entrada' ? "text-success" : "text-primary"
+                    )}>
+                      {movement.movement_type === 'entrada' ? '+' : '-'}{movement.quantity}
                     </div>
                   </div>
                 );
