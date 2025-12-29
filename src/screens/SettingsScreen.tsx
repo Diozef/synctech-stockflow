@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,8 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { useBusinessData } from '@/hooks/useBusiness';
+import { useAuth } from '@/contexts/AuthContext';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import {
   AlertDialog,
@@ -32,7 +33,9 @@ import {
   Settings2,
   Trash2,
   ExternalLink,
-  Shield
+  Shield,
+  LogOut,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -40,48 +43,80 @@ import { toast } from 'sonner';
 // ====================================================
 // MÓDULO: TELA 07 — CONFIGURAÇÕES / PERFIL DO NEGÓCIO
 // ====================================================
-// FUNÇÃO: Configurações globais do sistema
-// - business_type é protegido após has_products = true
-// - Preferências serão persistidas no banco futuramente
-// - Ação de reset volta o fluxo para onboarding
 
 export function SettingsScreen() {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const { 
+    business,
     businessType, 
     hasProducts, 
     minStockAlert, 
-    setMinStockAlert, 
+    updateBusiness,
     canChangeBusinessType,
-    resetBusiness 
-  } = useBusiness();
+    loading
+  } = useBusinessData();
   const config = getNicheConfig(businessType);
 
-  // ====================================================
-  // ESTADOS LOCAIS (mockados - serão persistidos futuramente)
-  // ====================================================
-  const [businessName, setBusinessName] = React.useState('Meu Negócio');
-  const [notifyLowStock, setNotifyLowStock] = React.useState(true);
-  const [notifyExpiration, setNotifyExpiration] = React.useState(true);
-  const [showIndicators, setShowIndicators] = React.useState(true);
+  // Estados locais
+  const [businessName, setBusinessName] = useState(business?.business_name || 'Meu Negócio');
+  const [notifyLowStock, setNotifyLowStock] = useState(true);
+  const [notifyExpiration, setNotifyExpiration] = useState(true);
+  const [showIndicators, setShowIndicators] = useState(true);
+  const [localMinAlert, setLocalMinAlert] = useState(minStockAlert);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   React.useEffect(() => {
-    if (!businessType) {
-      navigate('/');
+    if (!loading && !businessType) {
+      navigate('/app/onboarding');
     }
-  }, [businessType, navigate]);
+  }, [loading, businessType, navigate]);
+
+  React.useEffect(() => {
+    if (business) {
+      setBusinessName(business.business_name || 'Meu Negócio');
+      setLocalMinAlert(business.min_stock_alert);
+    }
+  }, [business]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!config) return null;
 
   const Icon = config.icon;
-  const canChange = canChangeBusinessType();
+  const canChange = canChangeBusinessType;
 
-  // ====================================================
-  // AÇÃO: Reset do sistema
-  // ====================================================
-  const handleResetSystem = () => {
-    resetBusiness();
-    toast.success('Sistema reiniciado com sucesso!');
+  // Handlers
+  const handleUpdateMinAlert = async (value: number) => {
+    setLocalMinAlert(value);
+    try {
+      await updateBusiness({ min_stock_alert: value });
+    } catch (error) {
+      console.error('Error updating min alert:', error);
+    }
+  };
+
+  const handleUpdateBusinessName = async () => {
+    if (!businessName.trim()) return;
+    setIsUpdating(true);
+    try {
+      await updateBusiness({ business_name: businessName.trim() });
+      toast.success('Nome atualizado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao atualizar nome');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
     navigate('/');
   };
 
@@ -96,9 +131,7 @@ export function SettingsScreen() {
       </div>
 
       <div className="space-y-4 pb-4">
-        {/* ====================================================
-            SEÇÃO: PERFIL DO NEGÓCIO
-            ==================================================== */}
+        {/* Perfil do negócio */}
         <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -112,13 +145,22 @@ export function SettingsScreen() {
               <Label htmlFor="businessName" className="text-sm font-medium">
                 Nome do negócio
               </Label>
-              <Input
-                id="businessName"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                placeholder="Digite o nome do seu negócio"
-                className="h-12"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="businessName"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="Digite o nome do seu negócio"
+                  className="h-12 flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  onClick={handleUpdateBusinessName}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar'}
+                </Button>
+              </div>
             </div>
 
             {/* Tipo de negócio */}
@@ -146,7 +188,7 @@ export function SettingsScreen() {
                 <Button
                   variant="outline"
                   className="w-full mt-2"
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/app/onboarding')}
                 >
                   Trocar tipo de negócio
                   <ChevronRight className="w-4 h-4 ml-2" />
@@ -163,9 +205,7 @@ export function SettingsScreen() {
           </CardContent>
         </Card>
 
-        {/* ====================================================
-            SEÇÃO: PREFERÊNCIAS DO SISTEMA
-            ==================================================== */}
+        {/* Preferências do sistema */}
         <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -199,19 +239,19 @@ export function SettingsScreen() {
                       variant="outline"
                       size="icon"
                       className="h-10 w-10"
-                      onClick={() => setMinStockAlert(Math.max(1, minStockAlert - 1))}
+                      onClick={() => handleUpdateMinAlert(Math.max(1, localMinAlert - 1))}
                     >
                       <Minus className="w-4 h-4" />
                     </Button>
                     <div className="text-center min-w-[60px]">
-                      <span className="text-2xl font-bold">{minStockAlert}</span>
+                      <span className="text-2xl font-bold">{localMinAlert}</span>
                       <p className="text-[10px] text-muted-foreground">unidades</p>
                     </div>
                     <Button
                       variant="outline"
                       size="icon"
                       className="h-10 w-10"
-                      onClick={() => setMinStockAlert(minStockAlert + 1)}
+                      onClick={() => handleUpdateMinAlert(localMinAlert + 1)}
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -252,9 +292,7 @@ export function SettingsScreen() {
           </CardContent>
         </Card>
 
-        {/* ====================================================
-            SEÇÃO: SOBRE O SISTEMA
-            ==================================================== */}
+        {/* Sobre o sistema */}
         <Card className="animate-slide-up" style={{ animationDelay: '200ms' }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -265,11 +303,11 @@ export function SettingsScreen() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between py-2">
               <span className="text-sm text-muted-foreground">Nome do sistema</span>
-              <span className="text-sm font-medium">Estoque Premium</span>
+              <span className="text-sm font-medium">StockFlow</span>
             </div>
             <div className="flex items-center justify-between py-2 border-t border-border/50">
               <span className="text-sm text-muted-foreground">Versão</span>
-              <span className="text-sm font-medium">1.0.0</span>
+              <span className="text-sm font-medium">2.0.0</span>
             </div>
             <div className="flex items-center justify-between py-2 border-t border-border/50">
               <span className="text-sm text-muted-foreground">Plano atual</span>
@@ -291,55 +329,23 @@ export function SettingsScreen() {
           </CardContent>
         </Card>
 
-        {/* ====================================================
-            SEÇÃO: AÇÕES CRÍTICAS
-            ==================================================== */}
+        {/* Ações da conta */}
         <Card className="animate-slide-up border-destructive/20" style={{ animationDelay: '250ms' }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2 text-destructive">
               <Shield className="w-5 h-5" />
-              Zona de perigo
+              Conta
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground mb-4">
-              Ações irreversíveis que afetam todo o sistema.
-            </p>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Reiniciar configuração do sistema
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-destructive" />
-                    Reiniciar sistema?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Isso apagará todos os produtos cadastrados (simulação) e voltará para a tela inicial de configuração. 
-                    <span className="block mt-2 font-medium text-foreground">
-                      Deseja continuar?
-                    </span>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleResetSystem}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Sim, reiniciar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+          <CardContent className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair da conta
+            </Button>
           </CardContent>
         </Card>
       </div>

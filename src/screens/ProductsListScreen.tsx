@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { 
   Plus, 
@@ -16,7 +16,8 @@ import {
   TrendingUp,
   Calendar,
   Pencil,
-  MoreVertical
+  MoreVertical,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, differenceInDays } from 'date-fns';
@@ -32,19 +33,6 @@ import { toast } from 'sonner';
 // ====================================================
 // MÓDULO: TELA 06 — LISTA DE PRODUTOS / ESTOQUE ATUAL
 // ====================================================
-// FUNÇÃO: Exibir todos os produtos cadastrados
-// 
-// Este módulo exibe o ESTOQUE ATUAL com:
-// - Pré-condição: verifica has_products
-// - Busca por nome (será conectada ao banco futuramente)
-// - Indicadores visuais de status
-// - Ações rápidas por produto
-// - Botão flutuante para cadastrar novo produto
-//
-// Informações variam conforme business_type
-// Alertas visuais seguem regras definidas aqui
-// Filtros e busca serão conectados ao banco futuramente
-// ====================================================
 
 // Subtítulos dinâmicos por nicho
 const SUBTITLES: Record<string, string> = {
@@ -55,24 +43,26 @@ const SUBTITLES: Record<string, string> = {
 
 export function ProductsListScreen() {
   const navigate = useNavigate();
-  const { businessType, products, minStockAlert, addMovement } = useBusiness();
+  const { businessType, products, minStockAlert, addMovement, loading } = useBusinessData();
   const config = getNicheConfig(businessType);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Redireciona se não tiver tipo de negócio definido
   React.useEffect(() => {
-    if (!businessType) {
-      navigate('/');
+    if (!loading && !businessType) {
+      navigate('/app/onboarding');
     }
-  }, [businessType, navigate]);
+  }, [loading, businessType, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!config) return null;
-
-  // ====================================================
-  // PRÉ-CONDIÇÃO DE ACESSO
-  // Se has_products = false, exibir estado vazio
-  // ====================================================
-  const hasProducts = products.length > 0;
 
   // Filtro de busca
   const filteredProducts = products.filter(p => 
@@ -83,8 +73,8 @@ export function ProductsListScreen() {
   // Contadores para KPIs
   const lowStockCount = products.filter(p => p.quantity <= minStockAlert).length;
   const expiringCount = products.filter(p => {
-    if (!p.expirationDate) return false;
-    const days = differenceInDays(new Date(p.expirationDate), new Date());
+    if (!p.expiration_date) return false;
+    const days = differenceInDays(new Date(p.expiration_date), new Date());
     return days >= 0 && days <= 30;
   }).length;
 
@@ -94,14 +84,14 @@ export function ProductsListScreen() {
   const isLowStock = (quantity: number) => quantity <= minStockAlert;
 
   // Verifica se produto está próximo do vencimento
-  const isExpiringSoon = (date?: Date) => {
+  const isExpiringSoon = (date?: string | null) => {
     if (!date) return false;
     const days = differenceInDays(new Date(date), new Date());
     return days >= 0 && days <= 30;
   };
 
   // Verifica se produto já venceu
-  const isExpired = (date?: Date) => {
+  const isExpired = (date?: string | null) => {
     if (!date) return false;
     return differenceInDays(new Date(date), new Date()) < 0;
   };
@@ -109,39 +99,45 @@ export function ProductsListScreen() {
   // ====================================================
   // AÇÕES RÁPIDAS POR PRODUTO
   // ====================================================
-  const handleQuickEntry = (productId: string, productName: string, e: React.MouseEvent) => {
+  const handleQuickEntry = async (productId: string, productName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Simula registro de entrada
-    addMovement({
-      productId,
-      type: 'entrada',
-      quantity: 1,
-      observation: `Entrada rápida - ${productName}`
-    });
-    toast.success('Entrada registrada com sucesso!');
+    try {
+      await addMovement({
+        product_id: productId,
+        movement_type: 'entrada',
+        quantity: 1,
+        observation: `Entrada rápida - ${productName}`
+      });
+      toast.success('Entrada registrada com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao registrar entrada');
+    }
   };
 
-  const handleQuickExit = (productId: string, productName: string, e: React.MouseEvent) => {
+  const handleQuickExit = async (productId: string, productName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Simula registro de saída
-    addMovement({
-      productId,
-      type: 'saida',
-      quantity: 1,
-      observation: `Saída rápida - ${productName}`
-    });
-    toast.success('Saída registrada com sucesso!');
+    try {
+      await addMovement({
+        product_id: productId,
+        movement_type: 'saida',
+        quantity: 1,
+        observation: `Saída rápida - ${productName}`
+      });
+      toast.success('Saída registrada com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao registrar saída');
+    }
   };
 
   const handleEdit = (productId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/products/${productId}`);
+    navigate(`/app/products/${productId}`);
   };
 
   // ====================================================
-  // TELA VAZIA (has_products = false)
+  // TELA VAZIA
   // ====================================================
-  if (!hasProducts) {
+  if (products.length === 0) {
     return (
       <MobileLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
@@ -160,7 +156,7 @@ export function ProductsListScreen() {
           <Button 
             variant="hero" 
             size="lg"
-            onClick={() => navigate('/products/new')}
+            onClick={() => navigate('/app/products/new')}
             className="gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -174,10 +170,7 @@ export function ProductsListScreen() {
 
   return (
     <MobileLayout>
-      {/* ====================================================
-          CABEÇALHO PREMIUM
-          Título e subtítulo dinâmico por nicho
-          ==================================================== */}
+      {/* Cabeçalho */}
       <div className="mb-6 animate-fade-in">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">
@@ -197,7 +190,6 @@ export function ProductsListScreen() {
             </span>
           </div>
           
-          {/* Indicador: Estoque baixo */}
           {lowStockCount > 0 && (
             <div className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
               <TrendingDown className="w-4 h-4" />
@@ -205,7 +197,6 @@ export function ProductsListScreen() {
             </div>
           )}
           
-          {/* Indicador: Próximo da validade (apenas cosméticos) */}
           {businessType === 'cosmeticos' && expiringCount > 0 && (
             <div className="flex items-center gap-1 text-sm text-orange-600 dark:text-orange-400">
               <Calendar className="w-4 h-4" />
@@ -215,10 +206,7 @@ export function ProductsListScreen() {
         </div>
       </div>
 
-      {/* ====================================================
-          CAMPO DE BUSCA
-          Busca por nome (resposta instantânea visual)
-          ==================================================== */}
+      {/* Campo de busca */}
       <div className="relative mb-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <Input
@@ -229,10 +217,7 @@ export function ProductsListScreen() {
         />
       </div>
 
-      {/* ====================================================
-          LISTA DE PRODUTOS
-          Cards premium com informações condicionais por nicho
-          ==================================================== */}
+      {/* Lista de produtos */}
       {filteredProducts.length === 0 ? (
         <Card className="text-center animate-fade-in border-dashed" style={{ animationDelay: '150ms' }}>
           <CardContent className="py-12">
@@ -247,11 +232,10 @@ export function ProductsListScreen() {
         <div className="space-y-3 pb-32">
           {filteredProducts.map((product, index) => {
             const lowStock = isLowStock(product.quantity);
-            const expiringSoon = isExpiringSoon(product.expirationDate);
-            const expired = isExpired(product.expirationDate);
+            const expiringSoon = isExpiringSoon(product.expiration_date);
+            const expired = isExpired(product.expiration_date);
             const hasAlert = lowStock || expiringSoon || expired;
 
-            // Determina o status do estoque
             const getStockStatus = () => {
               if (expired) return 'expired';
               if (expiringSoon) return 'expiring';
@@ -272,15 +256,15 @@ export function ProductsListScreen() {
                   stockStatus === 'low' && "border-l-amber-500"
                 )}
                 style={{ animationDelay: `${150 + index * 50}ms` }}
-                onClick={() => navigate(`/products/${product.id}`)}
+                onClick={() => navigate(`/app/products/${product.id}`)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     {/* Foto do produto */}
                     <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {product.photo ? (
+                      {product.photo_url ? (
                         <img 
-                          src={product.photo} 
+                          src={product.photo_url} 
                           alt={product.name} 
                           className="w-full h-full object-cover"
                         />
@@ -293,19 +277,11 @@ export function ProductsListScreen() {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">{product.name}</h3>
                       <p className="text-sm text-muted-foreground">
-                        R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {Number(product.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                       
                       {/* Informações condicionais por nicho */}
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        {/* MODA: Tamanho e Cor */}
-                        {businessType === 'moda' && product.variations && product.variations.length > 0 && (
-                          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                            {product.variations.length} variações
-                          </span>
-                        )}
-                        
-                        {/* COSMÉTICOS: Lote e Validade */}
                         {businessType === 'cosmeticos' && (
                           <>
                             {product.brand && (
@@ -313,20 +289,25 @@ export function ProductsListScreen() {
                                 {product.brand}
                               </span>
                             )}
-                            {product.expirationDate && (
+                            {product.expiration_date && (
                               <span className={cn(
                                 "text-xs px-2 py-0.5 rounded-full",
                                 expired && "bg-destructive/10 text-destructive",
                                 expiringSoon && !expired && "bg-orange-500/10 text-orange-600 dark:text-orange-400",
                                 !expired && !expiringSoon && "bg-muted text-muted-foreground"
                               )}>
-                                {expired ? 'Vencido' : format(new Date(product.expirationDate), "MMM/yy", { locale: ptBR })}
+                                {expired ? 'Vencido' : format(new Date(product.expiration_date), "MMM/yy", { locale: ptBR })}
                               </span>
                             )}
                           </>
                         )}
                         
-                        {/* GERAL: Apenas marca se houver */}
+                        {businessType === 'moda' && product.size && (
+                          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                            {product.size}
+                          </span>
+                        )}
+                        
                         {businessType === 'geral' && product.brand && (
                           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                             {product.brand}
@@ -335,7 +316,7 @@ export function ProductsListScreen() {
                       </div>
                     </div>
 
-                    {/* Quantidade em estoque com indicador visual */}
+                    {/* Quantidade em estoque */}
                     <div className={cn(
                       "flex flex-col items-center justify-center px-3 py-2 rounded-xl text-center min-w-[60px]",
                       stockStatus === 'normal' && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
@@ -347,10 +328,7 @@ export function ProductsListScreen() {
                       <span className="text-xs opacity-80">un</span>
                     </div>
 
-                    {/* ====================================================
-                        AÇÕES RÁPIDAS POR PRODUTO
-                        Dropdown com opções de entrada, saída e editar
-                        ==================================================== */}
+                    {/* Ações rápidas */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
@@ -404,16 +382,13 @@ export function ProductsListScreen() {
         </div>
       )}
 
-      {/* ====================================================
-          BOTÃO FLUTUANTE (FAB)
-          Cadastrar novo produto
-          ==================================================== */}
+      {/* Botão flutuante */}
       <div className="fixed bottom-24 right-6 z-40">
         <Button
           variant="hero"
           size="lg"
           className="rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-shadow"
-          onClick={() => navigate('/products/new')}
+          onClick={() => navigate('/app/products/new')}
         >
           <Plus className="w-6 h-6" />
         </Button>
@@ -423,17 +398,3 @@ export function ProductsListScreen() {
     </MobileLayout>
   );
 }
-
-// ====================================================
-// COMENTÁRIOS PARA MANUTENÇÃO FUTURA
-// ====================================================
-// - Este módulo exibe o ESTOQUE ATUAL
-// - Filtros e busca serão conectados ao banco futuramente
-// - Informações variam conforme business_type
-// - Alertas visuais seguem regras definidas aqui:
-//   - Estoque baixo: amarelo (amber)
-//   - Próximo da validade: laranja (apenas cosméticos)
-//   - Produto vencido: vermelho (destructive)
-// - Ações rápidas: entrada, saída e editar
-// - Botão flutuante para cadastrar novo produto
-// ====================================================
