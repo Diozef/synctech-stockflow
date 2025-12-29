@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // ====================================================
 // SISTEMA DE TAMANHOS FLEXÍVEL
-// Suporta: letras (roupas), numeração (calças/shorts) e calçados
+// Suporta: letras (roupas), numeração (calças/shorts), calçados e personalizado
 // ====================================================
 const SIZE_CATEGORIES = {
   letras: {
@@ -44,6 +45,10 @@ const SIZE_CATEGORIES = {
   calcados: {
     label: 'Calçados',
     sizes: ['33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45'],
+  },
+  personalizado: {
+    label: 'Personalizado',
+    sizes: [], // Usuário adiciona seus próprios tamanhos
   },
 };
 
@@ -83,8 +88,12 @@ export function ProductFormScreen() {
   // Variations for fashion
   const [variations, setVariations] = useState<Array<{ size: string; color: string; quantity: number }>>([]);
   
-  // Size category for fashion (letras, numeracao, calcados)
+  // Size category for fashion (letras, numeracao, calcados, personalizado)
   const [sizeCategory, setSizeCategory] = useState<SizeCategoryKey>('letras');
+  
+  // Custom sizes for personalized option
+  const [customSizes, setCustomSizes] = useState<string[]>([]);
+  const [newCustomSize, setNewCustomSize] = useState('');
 
   // Redirect if no business type
   React.useEffect(() => {
@@ -367,6 +376,49 @@ export function ProductFormScreen() {
                   </Select>
                 </div>
 
+                {/* Custom Size Input - shown when personalizado is selected */}
+                {sizeCategory === 'personalizado' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground mb-1 block">Adicionar tamanho personalizado</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Ex: 2XL, 54, etc."
+                        value={newCustomSize}
+                        onChange={(e) => setNewCustomSize(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (newCustomSize.trim() && !customSizes.includes(newCustomSize.trim())) {
+                            setCustomSizes([...customSizes, newCustomSize.trim()]);
+                            setNewCustomSize('');
+                          }
+                        }}
+                        disabled={!newCustomSize.trim()}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {customSizes.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {customSizes.map((size) => (
+                          <Badge 
+                            key={size} 
+                            variant="secondary" 
+                            className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                            onClick={() => setCustomSizes(customSizes.filter(s => s !== size))}
+                          >
+                            {size} ×
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs text-muted-foreground mb-1 block">Tamanho</Label>
@@ -375,7 +427,7 @@ export function ProductFormScreen() {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SIZE_CATEGORIES[sizeCategory].sizes.map((size) => (
+                        {(sizeCategory === 'personalizado' ? customSizes : SIZE_CATEGORIES[sizeCategory].sizes).map((size) => (
                           <SelectItem key={size} value={size}>{size}</SelectItem>
                         ))}
                       </SelectContent>
