@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MobileLayout } from '@/components/layout/MobileLayout';
+import { ProductPhotoUpload } from '@/components/ProductPhotoUpload';
 import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { 
   ChevronLeft, 
-  Camera, 
   Plus,
   Minus,
   Calendar,
@@ -229,21 +229,10 @@ export function ProductFormScreen() {
         {/* Photo */}
         <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
           <Label className="text-sm font-medium mb-2 block">Foto (opcional)</Label>
-          <button
-            className="w-full h-32 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-secondary/50 transition-colors"
-            onClick={() => {
-              setPhoto('https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&h=200&fit=crop');
-            }}
-          >
-            {photo ? (
-              <img src={photo} alt="Product" className="w-full h-full object-cover rounded-xl" />
-            ) : (
-              <>
-                <Camera className="w-8 h-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Adicionar foto</span>
-              </>
-            )}
-          </button>
+          <ProductPhotoUpload
+            value={photo}
+            onChange={setPhoto}
+          />
         </div>
 
         {/* Name */}
