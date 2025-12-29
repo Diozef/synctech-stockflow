@@ -36,7 +36,7 @@ export function OnboardingScreen() {
   // Handler para continuar
   const handleContinue = () => {
     if (businessType) {
-      navigate('/confirm-niche');
+      navigate('/app/confirm-niche');
     }
   };
 

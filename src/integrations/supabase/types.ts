@@ -14,7 +14,194 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      businesses: {
+        Row: {
+          business_name: string | null
+          business_type: Database["public"]["Enums"]["business_type"]
+          created_at: string
+          id: string
+          min_stock_alert: number
+          notifications_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_name?: string | null
+          business_type: Database["public"]["Enums"]["business_type"]
+          created_at?: string
+          id?: string
+          min_stock_alert?: number
+          notifications_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_name?: string | null
+          business_type?: Database["public"]["Enums"]["business_type"]
+          created_at?: string
+          id?: string
+          min_stock_alert?: number
+          notifications_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      custom_sizes: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          size_value: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          size_value: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          size_value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_sizes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_variations: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          size: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          size: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          size?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          brand: string | null
+          business_id: string
+          color: string | null
+          created_at: string
+          expiration_date: string | null
+          id: string
+          name: string
+          photo_url: string | null
+          price: number
+          quantity: number
+          size: string | null
+          size_category: Database["public"]["Enums"]["size_category"] | null
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          business_id: string
+          color?: string | null
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          name: string
+          photo_url?: string | null
+          price?: number
+          quantity?: number
+          size?: string | null
+          size_category?: Database["public"]["Enums"]["size_category"] | null
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          business_id?: string
+          color?: string | null
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          name?: string
+          photo_url?: string | null
+          price?: number
+          quantity?: number
+          size?: string | null
+          size_category?: Database["public"]["Enums"]["size_category"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          movement_type: Database["public"]["Enums"]["movement_type"]
+          observation: string | null
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          movement_type: Database["public"]["Enums"]["movement_type"]
+          observation?: string | null
+          product_id: string
+          quantity: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          movement_type?: Database["public"]["Enums"]["movement_type"]
+          observation?: string | null
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +210,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      business_type: "moda" | "cosmeticos" | "geral"
+      movement_type: "entrada" | "saida"
+      size_category: "letras" | "numeracao" | "calcados" | "personalizado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +339,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      business_type: ["moda", "cosmeticos", "geral"],
+      movement_type: ["entrada", "saida"],
+      size_category: ["letras", "numeracao", "calcados", "personalizado"],
+    },
   },
 } as const

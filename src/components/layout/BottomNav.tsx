@@ -38,11 +38,11 @@ export function BottomNav() {
 
   // Definição das 5 abas principais da navegação
   const navItems: NavItem[] = [
-    { icon: Home, label: 'Dashboard', path: '/dashboard' },
-    { icon: Package, label: 'Estoque', path: '/products' },
-    { icon: ArrowUpDown, label: 'Movimentar', path: '/movements' },
-    { icon: BarChart3, label: 'Relatórios', path: '/reports' },
-    { icon: Settings, label: 'Ajustes', path: '/settings' },
+    { icon: Home, label: 'Dashboard', path: '/app/dashboard' },
+    { icon: Package, label: 'Estoque', path: '/app/products' },
+    { icon: ArrowUpDown, label: 'Movimentar', path: '/app/movements' },
+    { icon: BarChart3, label: 'Relatórios', path: '/app/reports' },
+    { icon: Settings, label: 'Ajustes', path: '/app/settings' },
   ];
 
   return (
