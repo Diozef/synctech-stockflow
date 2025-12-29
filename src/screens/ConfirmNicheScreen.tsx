@@ -35,7 +35,7 @@ export function ConfirmNicheScreen() {
   // Redireciona se não tem nicho selecionado
   React.useEffect(() => {
     if (!businessType) {
-      navigate('/');
+      navigate('/app/onboarding');
     }
   }, [businessType, navigate]);
 
@@ -45,12 +45,12 @@ export function ConfirmNicheScreen() {
 
   // Handler para confirmar e avançar
   const handleConfirm = () => {
-    navigate('/dashboard');
+    navigate('/app/dashboard');
   };
 
   // Handler para voltar e escolher outro
   const handleBack = () => {
-    navigate('/');
+    navigate('/app/onboarding');
   };
 
   return (
