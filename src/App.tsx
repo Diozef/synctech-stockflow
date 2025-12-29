@@ -59,6 +59,11 @@ const App = () => (
                 <ProductFormScreen />
               </ProtectedRoute>
             } />
+            <Route path="/app/products/:id" element={
+              <ProtectedRoute requireBusiness>
+                <ProductFormScreen />
+              </ProtectedRoute>
+            } />
             <Route path="/app/movements" element={
               <ProtectedRoute requireBusiness>
                 <MovementsScreen />

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,15 +15,27 @@ import {
   Minus,
   Calendar,
   Check,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // ====================================================
 // MÓDULO: TELA 04 — CADASTRO DE PRODUTO
@@ -66,7 +78,19 @@ const COLORS = [
 
 export function ProductFormScreen() {
   const navigate = useNavigate();
-  const { businessType, business, addProduct, customSizes: dbCustomSizes, addCustomSize } = useBusinessData();
+  const { id } = useParams<{ id: string }>();
+  const isEditing = !!id && id !== 'new';
+  
+  const { 
+    businessType, 
+    business, 
+    products,
+    addProduct, 
+    updateProduct,
+    deleteProduct,
+    customSizes: dbCustomSizes, 
+    addCustomSize 
+  } = useBusinessData();
   const config = getNicheConfig(businessType);
 
   // Form states
@@ -75,6 +99,8 @@ export function ProductFormScreen() {
   const [quantity, setQuantity] = useState(1);
   const [photo, setPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(isEditing);
   
   // Conditional fields
   const [selectedSize, setSelectedSize] = useState<string>('');
@@ -93,15 +119,43 @@ export function ProductFormScreen() {
   const [customSizes, setCustomSizes] = useState<string[]>([]);
   const [newCustomSize, setNewCustomSize] = useState('');
 
+  // Load product data when editing
+  useEffect(() => {
+    if (isEditing && products.length > 0) {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        setName(product.name);
+        setPrice(product.price.toString().replace('.', ','));
+        setQuantity(product.quantity);
+        setPhoto(product.photo_url);
+        setSelectedSize(product.size || '');
+        setSelectedColor(product.color || '');
+        setBrand(product.brand || '');
+        if (product.expiration_date) {
+          setExpirationDate(parseISO(product.expiration_date));
+        }
+        if (product.size_category) {
+          setSizeCategory(product.size_category as SizeCategoryKey);
+        }
+        setIsLoading(false);
+      } else {
+        // Product not found, redirect
+        navigate('/app/products');
+      }
+    } else if (!isEditing) {
+      setIsLoading(false);
+    }
+  }, [isEditing, id, products, navigate]);
+
   // Redirect if no business type
-  React.useEffect(() => {
+  useEffect(() => {
     if (!businessType) {
       navigate('/app/onboarding');
     }
   }, [businessType, navigate]);
 
   // Load custom sizes from database
-  React.useEffect(() => {
+  useEffect(() => {
     if (dbCustomSizes.length > 0) {
       setCustomSizes(dbCustomSizes.map(s => s.size_value));
     }
@@ -131,33 +185,65 @@ export function ProductFormScreen() {
     setIsSubmitting(true);
 
     try {
-      await addProduct({
+      const productData = {
         name: name.trim(),
         price: parseFloat(price.replace(',', '.')),
-        quantity: config.fields.showVariations ? variations.reduce((sum, v) => sum + v.quantity, 0) : quantity,
-        photo_url: photo || undefined,
-        size: selectedSize || undefined,
-        color: selectedColor || undefined,
+        quantity: config?.fields.showVariations ? variations.reduce((sum, v) => sum + v.quantity, 0) : quantity,
+        photo_url: photo || null,
+        size: selectedSize || null,
+        color: selectedColor || null,
         size_category: sizeCategory as any,
-        brand: brand.trim() || undefined,
-        expiration_date: expirationDate ? format(expirationDate, 'yyyy-MM-dd') : undefined,
-      });
+        brand: brand.trim() || null,
+        expiration_date: expirationDate ? format(expirationDate, 'yyyy-MM-dd') : null,
+      };
 
-      toast({
-        title: "Produto cadastrado! 🎉",
-        description: `${name} foi adicionado ao seu estoque.`,
-      });
+      if (isEditing) {
+        await updateProduct(id!, productData);
+        toast({
+          title: "Produto atualizado!",
+          description: `${name} foi atualizado com sucesso.`,
+        });
+      } else {
+        await addProduct(productData);
+        toast({
+          title: "Produto cadastrado! 🎉",
+          description: `${name} foi adicionado ao seu estoque.`,
+        });
+      }
 
-      navigate('/app/dashboard');
+      navigate('/app/products');
     } catch (error) {
-      console.error('Error adding product:', error);
+      console.error('Error saving product:', error);
       toast({
-        title: "Erro ao cadastrar",
-        description: "Ocorreu um erro ao cadastrar o produto. Tente novamente.",
+        title: isEditing ? "Erro ao atualizar" : "Erro ao cadastrar",
+        description: `Ocorreu um erro ao ${isEditing ? 'atualizar' : 'cadastrar'} o produto. Tente novamente.`,
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteProduct(id);
+      toast({
+        title: "Produto excluído",
+        description: "O produto foi removido do seu estoque.",
+      });
+      navigate('/app/products');
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Ocorreu um erro ao excluir o produto. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -202,24 +288,78 @@ export function ProductFormScreen() {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
 
+  if (isLoading) {
+    return (
+      <MobileLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MobileLayout>
+    );
+  }
+
   return (
     <MobileLayout>
       {/* Cabeçalho */}
       <div className="mb-8 animate-fade-in">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
-        >
-          <ChevronLeft className="w-5 h-5" />
-          <span className="text-sm">Voltar</span>
-        </button>
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            <span className="text-sm">Voltar</span>
+          </button>
+          
+          {isEditing && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir produto?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. O produto "{name}" será removido permanentemente do seu estoque.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Excluindo...
+                      </>
+                    ) : (
+                      'Excluir'
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
         
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Cadastrar produto</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {isEditing ? 'Editar produto' : 'Cadastrar produto'}
+          </h1>
           <p className="text-muted-foreground">
-            {businessType === 'moda' && 'Cadastre produtos com tamanhos e cores'}
-            {businessType === 'cosmeticos' && 'Cadastre produtos por unidade e validade'}
-            {businessType === 'geral' && 'Cadastre produtos de forma simples'}
+            {isEditing 
+              ? 'Atualize as informações do produto'
+              : businessType === 'moda' 
+                ? 'Cadastre produtos com tamanhos e cores'
+                : businessType === 'cosmeticos' 
+                  ? 'Cadastre produtos por unidade e validade'
+                  : 'Cadastre produtos de forma simples'
+            }
           </p>
         </div>
       </div>
@@ -577,12 +717,12 @@ export function ProductFormScreen() {
           {isSubmitting ? (
             <>
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Cadastrando...
+              {isEditing ? 'Salvando...' : 'Cadastrando...'}
             </>
           ) : (
             <>
               <Check className="w-5 h-5 mr-2" />
-              Cadastrar produto
+              {isEditing ? 'Salvar alterações' : 'Cadastrar produto'}
             </>
           )}
         </Button>
