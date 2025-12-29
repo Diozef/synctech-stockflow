@@ -3,8 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { BusinessProvider } from "@/contexts/BusinessContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 // Screens
 import AuthScreen from "@/screens/AuthScreen";
@@ -23,33 +23,63 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <BusinessProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Auth */}
-              <Route path="/" element={<AuthScreen />} />
-              
-              {/* Onboarding Flow */}
-              <Route path="/app/onboarding" element={<OnboardingScreen />} />
-              <Route path="/app/confirm-niche" element={<ConfirmNicheScreen />} />
-              
-              {/* Main App */}
-              <Route path="/app/dashboard" element={<DashboardScreen />} />
-              <Route path="/app/products" element={<ProductsListScreen />} />
-              <Route path="/app/products/new" element={<ProductFormScreen />} />
-              <Route path="/app/movements" element={<MovementsScreen />} />
-              <Route path="/app/reports" element={<ReportsScreen />} />
-              <Route path="/app/settings" element={<SettingsScreen />} />
-              
-              {/* Fallback */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </BusinessProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Auth */}
+            <Route path="/" element={<AuthScreen />} />
+            
+            {/* Onboarding Flow - requires auth but not business */}
+            <Route path="/app/onboarding" element={
+              <ProtectedRoute>
+                <OnboardingScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/confirm-niche" element={
+              <ProtectedRoute>
+                <ConfirmNicheScreen />
+              </ProtectedRoute>
+            } />
+            
+            {/* Main App - requires auth and business */}
+            <Route path="/app/dashboard" element={
+              <ProtectedRoute requireBusiness>
+                <DashboardScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/products" element={
+              <ProtectedRoute requireBusiness>
+                <ProductsListScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/products/new" element={
+              <ProtectedRoute requireBusiness>
+                <ProductFormScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/movements" element={
+              <ProtectedRoute requireBusiness>
+                <MovementsScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/reports" element={
+              <ProtectedRoute requireBusiness>
+                <ReportsScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/settings" element={
+              <ProtectedRoute requireBusiness>
+                <SettingsScreen />
+              </ProtectedRoute>
+            } />
+            
+            {/* Fallback */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
