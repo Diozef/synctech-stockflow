@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { Check, ChevronLeft, ShieldCheck, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,8 +29,9 @@ import { cn } from '@/lib/utils';
 
 export function ConfirmNicheScreen() {
   const navigate = useNavigate();
-  const { businessType, hasProducts } = useBusiness();
-  const config = getNicheConfig(businessType);
+  const { business, hasProducts } = useBusinessData();
+  const businessType = business?.business_type;
+  const config = getNicheConfig(businessType || null);
 
   // Redireciona se não tem nicho selecionado
   React.useEffect(() => {
