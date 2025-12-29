@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Package, 
   AlertTriangle, 
@@ -15,109 +16,75 @@ import {
   ArrowUpRight,
   AlertCircle,
   Clock,
-  ShoppingBag
+  ShoppingBag,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // ====================================================
 // MÓDULO: TELA 03 — DASHBOARD (VISÃO GERAL DO ESTOQUE)
 // ====================================================
-// FUNÇÃO: Dar visão rápida e clara da situação do estoque
-// 
-// MANUTENÇÃO:
-// - Este módulo é o DASHBOARD PRINCIPAL do sistema
-// - Textos e rótulos dependem do state business_type
-// - Cards e alertas devem ser ajustados aqui
-// - NÃO aplicar lógica de banco neste módulo
-// - Dados são MOCKADOS para demonstração
-// ====================================================
-
-// Dados mockados para demonstração
-const MOCK_DATA = {
-  moda: {
-    totalProducts: 24,
-    alertCount: 3,
-    recentMovements: 12,
-    alertLabel: 'Tamanhos em falta',
-    alerts: [
-      { id: 1, message: 'Camiseta preta — tamanho M em falta', type: 'warning' },
-      { id: 2, message: 'Vestido floral — tamanho P esgotado', type: 'warning' },
-      { id: 3, message: 'Calça jeans — tamanho G com apenas 2 unidades', type: 'info' },
-    ],
-    movements: [
-      { id: 1, type: 'saida', message: 'Venda registrada — Camiseta azul (P)', time: 'Há 2 horas' },
-      { id: 2, type: 'entrada', message: 'Entrada de estoque — Vestido vermelho', time: 'Há 5 horas' },
-      { id: 3, type: 'saida', message: 'Venda registrada — Bolsa preta', time: 'Ontem' },
-    ],
-  },
-  cosmeticos: {
-    totalProducts: 36,
-    alertCount: 5,
-    recentMovements: 18,
-    alertLabel: 'Próximos do vencimento',
-    alerts: [
-      { id: 1, message: 'Perfume Importado X vence em 10 dias', type: 'warning' },
-      { id: 2, message: 'Base líquida vence em 15 dias', type: 'warning' },
-      { id: 3, message: 'Batom matte com estoque baixo', type: 'info' },
-    ],
-    movements: [
-      { id: 1, type: 'saida', message: 'Venda registrada — Perfume floral', time: 'Há 1 hora' },
-      { id: 2, type: 'entrada', message: 'Entrada de estoque — Kit maquiagem', time: 'Há 3 horas' },
-      { id: 3, type: 'saida', message: 'Venda registrada — Hidratante facial', time: 'Hoje cedo' },
-    ],
-  },
-  geral: {
-    totalProducts: 42,
-    alertCount: 4,
-    recentMovements: 15,
-    alertLabel: 'Estoque baixo',
-    alerts: [
-      { id: 1, message: 'Produto A com estoque baixo (2 unidades)', type: 'warning' },
-      { id: 2, message: 'Produto B precisa de reposição', type: 'warning' },
-      { id: 3, message: 'Produto C esgotado', type: 'info' },
-    ],
-    movements: [
-      { id: 1, type: 'saida', message: 'Venda registrada — Produto X', time: 'Há 30 min' },
-      { id: 2, type: 'entrada', message: 'Entrada de estoque — Produto Y', time: 'Há 2 horas' },
-      { id: 3, type: 'saida', message: 'Venda registrada — Produto Z', time: 'Ontem' },
-    ],
-  },
-};
 
 // Subtítulos dinâmicos por nicho
-const SUBTITLES = {
+const SUBTITLES: Record<string, string> = {
   moda: 'Acompanhe seus produtos por tamanho e cor',
   cosmeticos: 'Controle quantidades e validade dos seus produtos',
   geral: 'Tenha controle simples do seu estoque',
 };
 
+// Labels de alerta por nicho
+const ALERT_LABELS: Record<string, string> = {
+  moda: 'Tamanhos em falta',
+  cosmeticos: 'Próximos do vencimento',
+  geral: 'Estoque baixo',
+};
+
 export function DashboardScreen() {
   const navigate = useNavigate();
-  const { businessType, products, minStockAlert } = useBusiness();
+  const { user } = useAuth();
+  const { 
+    business, 
+    businessType, 
+    products, 
+    movements, 
+    minStockAlert,
+    loading 
+  } = useBusinessData();
   const config = getNicheConfig(businessType);
 
   // Redirect if no business type selected
   React.useEffect(() => {
-    if (!businessType) {
-      navigate('/');
+    if (!loading && !business) {
+      navigate('/app/onboarding');
     }
-  }, [businessType, navigate]);
+  }, [loading, business, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!config || !businessType) return null;
 
-  // Use mock data or real data if available
-  const mockData = MOCK_DATA[businessType];
-  const hasRealProducts = products.length > 0;
-  
-  // Calculate real stats if products exist
-  const realStats = {
+  // Calculate stats
+  const stats = {
     totalProducts: products.length,
     alertCount: products.filter(p => p.quantity <= minStockAlert).length,
-    recentMovements: 0,
+    recentMovements: movements.length,
   };
 
-  const stats = hasRealProducts ? realStats : mockData;
   const Icon = config.icon;
+
+  // Get low stock products for alerts
+  const lowStockProducts = products.filter(p => p.quantity <= minStockAlert).slice(0, 3);
+  
+  // Get recent movements for display
+  const recentMovements = movements.slice(0, 3);
 
   return (
     <MobileLayout>
@@ -174,7 +141,7 @@ export function DashboardScreen() {
             </div>
             <p className="text-2xl font-bold">{stats.alertCount}</p>
             <p className="text-xs text-muted-foreground leading-tight mt-1">
-              {mockData.alertLabel}
+              {ALERT_LABELS[businessType]}
             </p>
           </CardContent>
         </Card>
@@ -185,7 +152,7 @@ export function DashboardScreen() {
             <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center mx-auto mb-2">
               <TrendingUp className="w-5 h-5 text-success" />
             </div>
-            <p className="text-2xl font-bold">{hasRealProducts ? stats.recentMovements : mockData.recentMovements}</p>
+            <p className="text-2xl font-bold">{stats.recentMovements}</p>
             <p className="text-xs text-muted-foreground leading-tight mt-1">
               Movimentações
             </p>
@@ -204,18 +171,24 @@ export function DashboardScreen() {
         
         <Card>
           <CardContent className="p-0 divide-y divide-border">
-            {mockData.alerts.map((alert) => (
-              <div 
-                key={alert.id}
-                className="flex items-start gap-3 p-4"
-              >
-                <div className={cn(
-                  "w-2 h-2 rounded-full mt-2 flex-shrink-0",
-                  alert.type === 'warning' ? "bg-warning" : "bg-info"
-                )} />
-                <p className="text-sm leading-relaxed">{alert.message}</p>
+            {lowStockProducts.length === 0 ? (
+              <div className="flex items-start gap-3 p-4">
+                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0 bg-success" />
+                <p className="text-sm leading-relaxed">Nenhum alerta no momento</p>
               </div>
-            ))}
+            ) : (
+              lowStockProducts.map((product) => (
+                <div 
+                  key={product.id}
+                  className="flex items-start gap-3 p-4"
+                >
+                  <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0 bg-warning" />
+                  <p className="text-sm leading-relaxed">
+                    {product.name} — apenas {product.quantity} unidades
+                  </p>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
@@ -231,27 +204,48 @@ export function DashboardScreen() {
         
         <Card>
           <CardContent className="p-0 divide-y divide-border">
-            {mockData.movements.map((movement) => (
-              <div 
-                key={movement.id}
-                className="flex items-start gap-3 p-4"
-              >
-                <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                  movement.type === 'entrada' ? "bg-success/10" : "bg-primary/10"
-                )}>
-                  {movement.type === 'entrada' ? (
-                    <ArrowDownRight className="w-4 h-4 text-success" />
-                  ) : (
-                    <ArrowUpRight className="w-4 h-4 text-primary" />
-                  )}
+            {recentMovements.length === 0 ? (
+              <div className="flex items-start gap-3 p-4">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm leading-relaxed">{movement.message}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{movement.time}</p>
+                  <p className="text-sm leading-relaxed">Nenhuma movimentação ainda</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Registre entradas e saídas para ver aqui
+                  </p>
                 </div>
               </div>
-            ))}
+            ) : (
+              recentMovements.map((movement) => {
+                const product = products.find(p => p.id === movement.product_id);
+                return (
+                  <div 
+                    key={movement.id}
+                    className="flex items-start gap-3 p-4"
+                  >
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                      movement.movement_type === 'entrada' ? "bg-success/10" : "bg-primary/10"
+                    )}>
+                      {movement.movement_type === 'entrada' ? (
+                        <ArrowDownRight className="w-4 h-4 text-success" />
+                      ) : (
+                        <ArrowUpRight className="w-4 h-4 text-primary" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm leading-relaxed">
+                        {movement.movement_type === 'entrada' ? 'Entrada' : 'Saída'} — {product?.name || 'Produto'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatDistanceToNow(new Date(movement.created_at), { addSuffix: true, locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>
@@ -266,7 +260,7 @@ export function DashboardScreen() {
           variant="hero" 
           size="lg" 
           className="w-full justify-start"
-          onClick={() => navigate('/products/new')}
+          onClick={() => navigate('/app/products/new')}
         >
           <Plus className="w-5 h-5 mr-3" />
           Cadastrar {config.labels.product.toLowerCase()}
@@ -277,7 +271,7 @@ export function DashboardScreen() {
             variant="outline" 
             size="lg" 
             className="justify-start h-14"
-            onClick={() => navigate('/movements', { state: { type: 'entrada' } })}
+            onClick={() => navigate('/app/movements', { state: { type: 'entrada' } })}
           >
             <ArrowDownRight className="w-5 h-5 mr-2 text-success" />
             <span className="text-sm">Registrar entrada</span>
@@ -287,7 +281,7 @@ export function DashboardScreen() {
             variant="outline" 
             size="lg" 
             className="justify-start h-14"
-            onClick={() => navigate('/movements', { state: { type: 'saida' } })}
+            onClick={() => navigate('/app/movements', { state: { type: 'saida' } })}
           >
             <ShoppingBag className="w-5 h-5 mr-2 text-primary" />
             <span className="text-sm">Registrar venda</span>

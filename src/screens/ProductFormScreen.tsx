@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { 
   ChevronLeft, 
@@ -14,7 +14,8 @@ import {
   Plus,
   Minus,
   Calendar,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -27,12 +28,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 // ====================================================
 // MÓDULO: TELA 04 — CADASTRO DE PRODUTO
 // ====================================================
-// FUNÇÃO: Cadastrar produtos conforme o tipo de negócio
 
-// ====================================================
-// SISTEMA DE TAMANHOS FLEXÍVEL
-// Suporta: letras (roupas), numeração (calças/shorts), calçados e personalizado
-// ====================================================
+// Sistema de tamanhos flexível
 const SIZE_CATEGORIES = {
   letras: {
     label: 'Letras (Roupas)',
@@ -48,7 +45,7 @@ const SIZE_CATEGORIES = {
   },
   personalizado: {
     label: 'Personalizado',
-    sizes: [], // Usuário adiciona seus próprios tamanhos
+    sizes: [],
   },
 };
 
@@ -69,7 +66,7 @@ const COLORS = [
 
 export function ProductFormScreen() {
   const navigate = useNavigate();
-  const { businessType, addProduct } = useBusiness();
+  const { businessType, business, addProduct, customSizes: dbCustomSizes, addCustomSize } = useBusinessData();
   const config = getNicheConfig(businessType);
 
   // Form states
@@ -77,6 +74,7 @@ export function ProductFormScreen() {
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Conditional fields
   const [selectedSize, setSelectedSize] = useState<string>('');
@@ -88,23 +86,30 @@ export function ProductFormScreen() {
   // Variations for fashion
   const [variations, setVariations] = useState<Array<{ size: string; color: string; quantity: number }>>([]);
   
-  // Size category for fashion (letras, numeracao, calcados, personalizado)
+  // Size category for fashion
   const [sizeCategory, setSizeCategory] = useState<SizeCategoryKey>('letras');
   
-  // Custom sizes for personalized option
+  // Custom sizes
   const [customSizes, setCustomSizes] = useState<string[]>([]);
   const [newCustomSize, setNewCustomSize] = useState('');
 
   // Redirect if no business type
   React.useEffect(() => {
     if (!businessType) {
-      navigate('/');
+      navigate('/app/onboarding');
     }
   }, [businessType, navigate]);
 
+  // Load custom sizes from database
+  React.useEffect(() => {
+    if (dbCustomSizes.length > 0) {
+      setCustomSizes(dbCustomSizes.map(s => s.size_value));
+    }
+  }, [dbCustomSizes]);
+
   if (!config) return null;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) {
       toast({
         title: "Nome obrigatório",
@@ -114,7 +119,7 @@ export function ProductFormScreen() {
       return;
     }
 
-    if (!price || parseFloat(price) <= 0) {
+    if (!price || parseFloat(price.replace(',', '.')) <= 0) {
       toast({
         title: "Preço obrigatório",
         description: "Digite um preço válido",
@@ -123,26 +128,49 @@ export function ProductFormScreen() {
       return;
     }
 
-    const product = {
-      name: name.trim(),
-      price: parseFloat(price.replace(',', '.')),
-      quantity: config.fields.showVariations ? variations.reduce((sum, v) => sum + v.quantity, 0) : quantity,
-      photo: photo || undefined,
-      size: selectedSize || undefined,
-      color: selectedColor || undefined,
-      brand: brand.trim() || undefined,
-      expirationDate: expirationDate,
-      variations: config.fields.showVariations ? variations : undefined,
-    };
+    setIsSubmitting(true);
 
-    addProduct(product);
+    try {
+      await addProduct({
+        name: name.trim(),
+        price: parseFloat(price.replace(',', '.')),
+        quantity: config.fields.showVariations ? variations.reduce((sum, v) => sum + v.quantity, 0) : quantity,
+        photo_url: photo || undefined,
+        size: selectedSize || undefined,
+        color: selectedColor || undefined,
+        size_category: sizeCategory as any,
+        brand: brand.trim() || undefined,
+        expiration_date: expirationDate ? format(expirationDate, 'yyyy-MM-dd') : undefined,
+      });
 
-    toast({
-      title: "Produto cadastrado! 🎉",
-      description: `${name} foi adicionado ao seu estoque.`,
-    });
+      toast({
+        title: "Produto cadastrado! 🎉",
+        description: `${name} foi adicionado ao seu estoque.`,
+      });
 
-    navigate('/dashboard');
+      navigate('/app/dashboard');
+    } catch (error) {
+      console.error('Error adding product:', error);
+      toast({
+        title: "Erro ao cadastrar",
+        description: "Ocorreu um erro ao cadastrar o produto. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddCustomSize = async () => {
+    if (newCustomSize.trim() && !customSizes.includes(newCustomSize.trim())) {
+      try {
+        await addCustomSize(newCustomSize.trim());
+        setCustomSizes([...customSizes, newCustomSize.trim()]);
+        setNewCustomSize('');
+      } catch (error) {
+        console.error('Error adding custom size:', error);
+      }
+    }
   };
 
   const handleAddVariation = () => {
@@ -166,7 +194,7 @@ export function ProductFormScreen() {
     setVariations(variations.filter((_, i) => i !== index));
   };
 
-  // Generate years for date picker (current year to +5 years)
+  // Generate years for date picker
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 6 }, (_, i) => currentYear + i);
   const months = [
@@ -176,10 +204,7 @@ export function ProductFormScreen() {
 
   return (
     <MobileLayout>
-      {/* ====================================================
-          CABEÇALHO PREMIUM
-          Título e subtítulo dinâmicos por nicho
-          ==================================================== */}
+      {/* Cabeçalho */}
       <div className="mb-8 animate-fade-in">
         <button
           onClick={() => navigate(-1)}
@@ -207,7 +232,6 @@ export function ProductFormScreen() {
           <button
             className="w-full h-32 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-secondary/50 transition-colors"
             onClick={() => {
-              // Mock photo upload
               setPhoto('https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&h=200&fit=crop');
             }}
           >
@@ -293,7 +317,6 @@ export function ProductFormScreen() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                {/* Year/Month Selectors */}
                 <div className="flex gap-2 p-3 border-b">
                   <Select
                     value={calendarMonth.getMonth().toString()}
@@ -355,7 +378,6 @@ export function ProductFormScreen() {
               Variações (tamanho + cor)
             </Label>
             
-            {/* Add Variation */}
             <Card>
               <CardContent className="p-4 space-y-3">
                 {/* Size Category Selector */}
@@ -363,7 +385,7 @@ export function ProductFormScreen() {
                   <Label className="text-xs text-muted-foreground mb-1 block">Tipo de tamanho</Label>
                   <Select value={sizeCategory} onValueChange={(val) => {
                     setSizeCategory(val as SizeCategoryKey);
-                    setSelectedSize(''); // Reset selected size when category changes
+                    setSelectedSize('');
                   }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo" />
@@ -376,7 +398,7 @@ export function ProductFormScreen() {
                   </Select>
                 </div>
 
-                {/* Custom Size Input - shown when personalizado is selected */}
+                {/* Custom Size Input */}
                 {sizeCategory === 'personalizado' && (
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground mb-1 block">Adicionar tamanho personalizado</Label>
@@ -391,12 +413,7 @@ export function ProductFormScreen() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          if (newCustomSize.trim() && !customSizes.includes(newCustomSize.trim())) {
-                            setCustomSizes([...customSizes, newCustomSize.trim()]);
-                            setNewCustomSize('');
-                          }
-                        }}
+                        onClick={handleAddCustomSize}
                         disabled={!newCustomSize.trim()}
                       >
                         <Plus className="h-4 w-4" />
@@ -455,14 +472,15 @@ export function ProductFormScreen() {
                     </Select>
                   </div>
                 </div>
+
                 <Button
+                  type="button"
                   variant="outline"
-                  size="sm"
                   className="w-full"
-                  disabled={!selectedSize || !selectedColor}
                   onClick={handleAddVariation}
+                  disabled={!selectedSize || !selectedColor}
                 >
-                  <Plus className="w-4 h-4 mr-1" />
+                  <Plus className="w-4 h-4 mr-2" />
                   Adicionar variação
                 </Button>
               </CardContent>
@@ -473,17 +491,11 @@ export function ProductFormScreen() {
               <div className="space-y-2">
                 {variations.map((variation, index) => (
                   <Card key={index}>
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-6 h-6 rounded-full border"
-                          style={{ 
-                            backgroundColor: COLORS.find(c => c.name === variation.color)?.value 
-                          }}
-                        />
-                        <span className="text-sm font-medium">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
                           {variation.size} - {variation.color}
-                        </span>
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -492,16 +504,18 @@ export function ProductFormScreen() {
                           className="h-8 w-8"
                           onClick={() => updateVariationQuantity(index, -1)}
                         >
-                          <Minus className="w-4 h-4" />
+                          <Minus className="w-3 h-3" />
                         </Button>
-                        <span className="w-8 text-center font-medium">{variation.quantity}</span>
+                        <span className="w-8 text-center font-medium">
+                          {variation.quantity}
+                        </span>
                         <Button
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => updateVariationQuantity(index, 1)}
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="w-3 h-3" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -509,75 +523,81 @@ export function ProductFormScreen() {
                           className="text-destructive"
                           onClick={() => removeVariation(index)}
                         >
-                          ✕
+                          ×
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
+                
+                <div className="text-center p-3 bg-secondary/50 rounded-xl">
+                  <p className="text-sm text-muted-foreground">
+                    Total: <span className="font-bold text-foreground">
+                      {variations.reduce((sum, v) => sum + v.quantity, 0)} unidades
+                    </span>
+                  </p>
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Simple Quantity (for non-fashion) */}
+        {/* Simple Quantity (General/Cosmetics) */}
         {!config.fields.showVariations && (
           <div className="animate-slide-up" style={{ animationDelay: '300ms' }}>
-            <Label className="text-sm font-medium mb-2 block">
+            <Label className="text-sm font-medium mb-3 block">
               Quantidade em estoque
             </Label>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center gap-6">
               <Button
                 variant="outline"
                 size="icon"
-                className="h-12 w-12"
+                className="h-14 w-14 rounded-2xl"
                 onClick={() => setQuantity(Math.max(0, quantity - 1))}
               >
-                <Minus className="w-5 h-5" />
+                <Minus className="w-6 h-6" />
               </Button>
-              <span className="text-2xl font-bold w-16 text-center">{quantity}</span>
+              <Input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-24 h-14 text-center text-2xl font-bold"
+              />
               <Button
                 variant="outline"
                 size="icon"
-                className="h-12 w-12"
+                className="h-14 w-14 rounded-2xl"
                 onClick={() => setQuantity(quantity + 1)}
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-6 h-6" />
               </Button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ====================================================
-          AÇÃO PRINCIPAL + MICROCOPY
-          Botão de cadastro e texto de apoio
-          ==================================================== */}
-      <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-6 pb-4 mt-8">
+      {/* Submit Button */}
+      <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-6 pb-8 mt-8">
         <Button
           variant="hero"
           size="xl"
           className="w-full"
           onClick={handleSubmit}
+          disabled={isSubmitting}
         >
-          <Check className="w-5 h-5 mr-2" />
-          Salvar produto
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Cadastrando...
+            </>
+          ) : (
+            <>
+              <Check className="w-5 h-5 mr-2" />
+              Cadastrar produto
+            </>
+          )}
         </Button>
-        
-        {/* Microcopy de apoio para reduzir fricção */}
-        <p className="text-center text-xs text-muted-foreground mt-3">
-          Você poderá editar essas informações depois.
-        </p>
       </div>
     </MobileLayout>
   );
 }
-
-// ====================================================
-// COMENTÁRIOS PARA MANUTENÇÃO FUTURA
-// ====================================================
-// - Este módulo define quando has_products passa a ser true
-// - Ajustes nos campos por nicho devem ser feitos aqui
-// - Lógica de banco será conectada futuramente
-// - Regras de validade estão vinculadas ao calendário
-// ====================================================

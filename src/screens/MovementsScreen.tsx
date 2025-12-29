@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { 
   ArrowDownRight, 
@@ -15,7 +15,8 @@ import {
   Package,
   Plus,
   Minus,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -24,12 +25,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 // ====================================================
 // MÓDULO: TELA 05 — ENTRADA / SAÍDA DE ESTOQUE
 // ====================================================
-// FUNÇÃO: Registrar movimentações simples de estoque
 
 export function MovementsScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { businessType, products, addMovement } = useBusiness();
+  const { businessType, products, addMovement, loading } = useBusinessData();
   const config = getNicheConfig(businessType);
 
   const initialType = (location.state as any)?.type || 'entrada';
@@ -38,18 +38,27 @@ export function MovementsScreen() {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
   const [observation, setObservation] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
-    if (!businessType) {
-      navigate('/');
+    if (!loading && !businessType) {
+      navigate('/app/onboarding');
     }
-  }, [businessType, navigate]);
+  }, [loading, businessType, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!config) return null;
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedProductId) {
       toast({
         title: "Selecione um produto",
@@ -77,23 +86,36 @@ export function MovementsScreen() {
       return;
     }
 
-    addMovement({
-      productId: selectedProductId,
-      type: movementType,
-      quantity,
-      observation: observation.trim() || undefined,
-    });
+    setIsSubmitting(true);
 
-    const actionLabel = movementType === 'entrada' ? 'adicionadas' : 'removidas';
-    toast({
-      title: `${quantity} unidades ${actionLabel}! ✓`,
-      description: `Estoque de "${selectedProduct?.name}" atualizado`,
-    });
+    try {
+      await addMovement({
+        product_id: selectedProductId,
+        movement_type: movementType,
+        quantity,
+        observation: observation.trim() || undefined,
+      });
 
-    // Reset form
-    setSelectedProductId('');
-    setQuantity(1);
-    setObservation('');
+      const actionLabel = movementType === 'entrada' ? 'adicionadas' : 'removidas';
+      toast({
+        title: `${quantity} unidades ${actionLabel}! ✓`,
+        description: `Estoque de "${selectedProduct?.name}" atualizado`,
+      });
+
+      // Reset form
+      setSelectedProductId('');
+      setQuantity(1);
+      setObservation('');
+    } catch (error) {
+      console.error('Error adding movement:', error);
+      toast({
+        title: "Erro ao registrar",
+        description: "Ocorreu um erro ao registrar a movimentação. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -149,7 +171,7 @@ export function MovementsScreen() {
             </p>
             <Button 
               variant="hero" 
-              onClick={() => navigate('/products/new')}
+              onClick={() => navigate('/app/products/new')}
             >
               <Plus className="w-5 h-5 mr-2" />
               {config.labels.addProduct}
@@ -172,9 +194,9 @@ export function MovementsScreen() {
                   <SelectItem key={product.id} value={product.id}>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                        {product.photo ? (
+                        {product.photo_url ? (
                           <img 
-                            src={product.photo} 
+                            src={product.photo_url} 
                             alt={product.name} 
                             className="w-full h-full object-cover rounded-lg"
                           />
@@ -200,9 +222,9 @@ export function MovementsScreen() {
             <Card className="animate-scale-in">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
-                  {selectedProduct.photo ? (
+                  {selectedProduct.photo_url ? (
                     <img 
-                      src={selectedProduct.photo} 
+                      src={selectedProduct.photo_url} 
                       alt={selectedProduct.name} 
                       className="w-full h-full object-cover"
                     />
@@ -292,10 +314,19 @@ export function MovementsScreen() {
             size="xl"
             className="w-full"
             onClick={handleSubmit}
-            disabled={!selectedProductId}
+            disabled={!selectedProductId || isSubmitting}
           >
-            <Check className="w-5 h-5 mr-2" />
-            Confirmar {movementType}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Registrando...
+              </>
+            ) : (
+              <>
+                <Check className="w-5 h-5 mr-2" />
+                Confirmar {movementType}
+              </>
+            )}
           </Button>
         </div>
       )}
