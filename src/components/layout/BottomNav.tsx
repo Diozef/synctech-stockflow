@@ -21,7 +21,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Package, ArrowUpDown, BarChart3, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 
 interface NavItem {
@@ -33,8 +33,8 @@ interface NavItem {
 export function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { businessType } = useBusiness();
-  const config = getNicheConfig(businessType);
+  const { business } = useBusinessData();
+  const config = getNicheConfig(business?.business_type || null);
 
   // Definição das 5 abas principais da navegação
   const navItems: NavItem[] = [
