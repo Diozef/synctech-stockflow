@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { TrialBanner } from '@/components/TrialBanner';
 
 interface MobileLayoutProps {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ export function MobileLayout({
 }: MobileLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
+      <TrialBanner />
       {showHeader && header && (
         <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-lg border-b">
           {header}
