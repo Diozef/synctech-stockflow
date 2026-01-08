@@ -202,6 +202,51 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          hotmart_subscription_code: string | null
+          hotmart_transaction_id: string | null
+          id: string
+          plan_name: string
+          price_cents: number
+          status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          hotmart_subscription_code?: string | null
+          hotmart_transaction_id?: string | null
+          id?: string
+          plan_name?: string
+          price_cents?: number
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          hotmart_subscription_code?: string | null
+          hotmart_transaction_id?: string | null
+          id?: string
+          plan_name?: string
+          price_cents?: number
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -213,6 +258,7 @@ export type Database = {
       business_type: "moda" | "cosmeticos" | "geral"
       movement_type: "entrada" | "saida"
       size_category: "letras" | "numeracao" | "calcados" | "personalizado"
+      subscription_status: "trial" | "active" | "cancelled" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -343,6 +389,7 @@ export const Constants = {
       business_type: ["moda", "cosmeticos", "geral"],
       movement_type: ["entrada", "saida"],
       size_category: ["letras", "numeracao", "calcados", "personalizado"],
+      subscription_status: ["trial", "active", "cancelled", "expired"],
     },
   },
 } as const
