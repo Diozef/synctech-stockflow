@@ -125,10 +125,15 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     // Atualiza quantidade do produto
     const product = products.find(p => p.id === movement.productId);
     if (product) {
+      if (movement.type === 'saida' && movement.quantity > product.quantity) {
+        throw new Error('Estoque insuficiente no Contexto');
+      }
+
       const newQuantity = movement.type === 'entrada' 
         ? product.quantity + movement.quantity
         : product.quantity - movement.quantity;
-      updateProduct(movement.productId, { quantity: Math.max(0, newQuantity) });
+      
+      updateProduct(movement.productId, { quantity: newQuantity });
     }
   };
 

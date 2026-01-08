@@ -66,11 +66,12 @@ export function SettingsScreen() {
   const [localMinAlert, setLocalMinAlert] = useState(minStockAlert);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  React.useEffect(() => {
-    if (!loading && !businessType) {
-      navigate('/app/onboarding');
-    }
-  }, [loading, businessType, navigate]);
+  
+  //React.useEffect(() => {
+    //if (!loading && !businessType) {
+      //navigate('/app/onboarding');
+    //}
+  //}, [loading, businessType, navigate]);
 
   React.useEffect(() => {
     if (business) {
@@ -197,7 +198,7 @@ export function SettingsScreen() {
                 <div className="mt-2 p-3 bg-warning/10 border border-warning/20 rounded-xl flex items-start gap-3">
                   <Lock className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-muted-foreground">
-                    O tipo de negócio não pode ser alterado após o cadastro do primeiro produto.
+                    Exclua seus produtos para alterar o nicho do negócio.
                   </p>
                 </div>
               )}
