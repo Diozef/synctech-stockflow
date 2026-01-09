@@ -89,7 +89,8 @@ export function ProductFormScreen() {
     updateProduct,
     deleteProduct,
     customSizes: dbCustomSizes, 
-    addCustomSize 
+    addCustomSize,
+    loading
   } = useBusinessData();
   const config = getNicheConfig(businessType);
 
@@ -147,12 +148,12 @@ export function ProductFormScreen() {
     }
   }, [isEditing, id, products, navigate]);
 
-  // Redirect if no business type
+  // Redirect if no business type (but not while loading)
   useEffect(() => {
-    if (!businessType) {
+    if (!loading && !businessType) {
       navigate('/app/onboarding');
     }
-  }, [businessType, navigate]);
+  }, [businessType, navigate, loading]);
 
   // Load custom sizes from database
   useEffect(() => {
@@ -192,7 +193,7 @@ export function ProductFormScreen() {
         photo_url: photo || null,
         size: selectedSize || null,
         color: selectedColor || null,
-        size_category: sizeCategory as any,
+        size_category: sizeCategory as SizeCategoryKey,
         brand: brand.trim() || null,
         expiration_date: expirationDate ? format(expirationDate, 'yyyy-MM-dd') : null,
       };

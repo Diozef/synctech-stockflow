@@ -23,7 +23,6 @@ import { cn } from '@/lib/utils';
 // - Ajustes de textos por nicho devem ser feitos em nicheConfig.ts
 // - Nenhuma regra de banco deve ser aplicada aqui
 // - Bloqueios definitivos de troca pertencem à lógica do sistema
-//   após o cadastro de produtos (verificar em BusinessContext)
 // 
 // ====================================================
 

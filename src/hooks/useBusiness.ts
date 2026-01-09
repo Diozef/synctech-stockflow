@@ -39,6 +39,18 @@ export function useBusinessData() {
     return data;
   }, [user]);
 
+  // Force refresh wrapper that ensures loading state updates and logs
+  const refreshBusiness = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchBusiness();
+      console.log('refreshBusiness: fetched', data ? '1 business' : 'no business');
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchBusiness]);
+
   const fetchProducts = useCallback(async () => {
     if (!business) return [];
     
@@ -100,6 +112,38 @@ export function useBusinessData() {
   const createBusiness = async (businessType: 'moda' | 'cosmeticos' | 'geral', businessName?: string) => {
     if (!user) throw new Error('User not authenticated');
     
+    console.log('Creating business with type:', businessType, 'for user:', user.id);
+    // If a business already exists for this user, update it instead of inserting
+    const { data: existing, error: fetchErr } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (fetchErr) {
+      console.error('Error checking existing business:', fetchErr);
+      throw fetchErr;
+    }
+
+    if (existing) {
+      console.log('Business already exists for user, updating type to:', businessType);
+      const { data, error } = await supabase
+        .from('businesses')
+        .update({ business_type: businessType, business_name: businessName })
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating existing business:', error);
+        throw error;
+      }
+
+      console.log('Business updated successfully:', data);
+      setBusiness(data);
+      return data;
+    }
+
     const { data, error } = await supabase
       .from('businesses')
       .insert({
@@ -109,8 +153,13 @@ export function useBusinessData() {
       })
       .select()
       .single();
-    
-    if (error) throw error;
+
+    if (error) {
+      console.error('Error creating business:', error);
+      throw error;
+    }
+
+    console.log('Business created successfully:', data);
     setBusiness(data);
     return data;
   };
@@ -172,6 +221,13 @@ export function useBusinessData() {
     
     if (error) throw error;
     setProducts(prev => prev.filter(p => p.id !== id));
+    // Refetch para garantir que hasProducts seja atualizado corretamente
+    const remaining = await fetchProducts();
+    // Se não há mais produtos, refresh business para atualizar canChangeBusinessType
+    if (remaining && remaining.length === 0) {
+      console.log('Todos os produtos removidos — atualizando estado do negócio');
+      await refreshBusiness();
+    }
   };
 
   // ====================================================
@@ -222,6 +278,170 @@ export function useBusinessData() {
     
     if (error) throw error;
     setCustomSizes(prev => prev.filter(s => s.id !== id));
+  };
+
+  const deleteBusiness = async () => {
+    if (!business) throw new Error('No business found');
+    
+    console.log('Deleting business:', business.id, 'type:', business.business_type);
+    
+    // 1. First, get all products for this business to find associated movements
+    const { data: businessProducts, error: productsGetError } = await supabase
+      .from('products')
+      .select('id')
+      .eq('business_id', business.id);
+    
+    console.log('Found products to delete:', businessProducts?.length || 0);
+    
+    if (productsGetError) {
+      console.error('Error fetching products for deletion:', productsGetError);
+    }
+    
+    // 2. Delete all stock movements for these products
+    if (businessProducts && businessProducts.length > 0) {
+      const productIds = businessProducts.map(p => p.id);
+      const { error: movementsError } = await supabase
+        .from('stock_movements')
+        .delete()
+        .in('product_id', productIds);
+      
+      if (movementsError) {
+        console.error('Error deleting stock movements:', movementsError);
+      } else {
+        console.log('Stock movements deleted successfully');
+      }
+    }
+    
+    // 3. Delete all products associated with this business
+    const { error: productsError } = await supabase
+      .from('products')
+      .delete()
+      .eq('business_id', business.id);
+    
+    if (productsError) {
+      console.error('Error deleting products:', productsError);
+      throw productsError;
+    } else {
+      console.log('Products deleted successfully');
+    }
+    
+    // 4. Delete custom sizes
+    const { error: sizesError } = await supabase
+      .from('custom_sizes')
+      .delete()
+      .eq('business_id', business.id);
+    
+    if (sizesError) {
+      console.error('Error deleting custom sizes:', sizesError);
+    } else {
+      console.log('Custom sizes deleted successfully');
+    }
+    
+    // 5. Finally, delete the business itself
+    const { error } = await supabase
+      .from('businesses')
+      .delete()
+      .eq('id', business.id);
+    
+    if (error) {
+      console.error('Error deleting business:', error);
+      throw error;
+    } else {
+      console.log('Business deleted successfully');
+    }
+    
+    // Clear local state
+    setBusiness(null);
+    setProducts([]);
+    setMovements([]);
+    setCustomSizes([]);
+  };
+
+  // ====================================================
+  // RESET ALL BUSINESSES FOR CURRENT USER (TEMPORARY, DESTRUCTIVE)
+  // ====================================================
+  const resetBusinessesForUser = async () => {
+    if (!user) throw new Error('No user found');
+
+    console.log('resetBusinessesForUser: iniciando para user', user.id);
+
+    // 1. Find all businesses for this user
+    const { data: userBusinesses, error: bizError } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('user_id', user.id);
+
+    if (bizError) {
+      console.error('Erro ao buscar businesses do usuário:', bizError);
+      throw bizError;
+    }
+
+    const businessIds: string[] = (userBusinesses || []).map(b => b.id);
+    console.log('resetBusinessesForUser: found', businessIds.length, 'business(es)');
+
+    if (businessIds.length === 0) {
+      // Nothing to do
+      setBusiness(null);
+      setProducts([]);
+      setMovements([]);
+      setCustomSizes([]);
+      return;
+    }
+
+    // 2. For each business, delete stock_movements -> products -> custom_sizes -> business
+    // Delete stock_movements for products belonging to these businesses
+    const { data: productsForBiz, error: prodFetchErr } = await supabase
+      .from('products')
+      .select('id,business_id')
+      .in('business_id', businessIds);
+
+    if (prodFetchErr) {
+      console.error('Erro ao buscar produtos para reset:', prodFetchErr);
+    }
+
+    const productIds = (productsForBiz || []).map(p => p.id);
+    if (productIds.length > 0) {
+      const { error: movementsErr } = await supabase
+        .from('stock_movements')
+        .delete()
+        .in('product_id', productIds);
+      if (movementsErr) console.error('Erro deletando stock_movements durante reset:', movementsErr);
+      else console.log('Stock movements deletados durante reset');
+    }
+
+    // Delete products
+    const { error: productsDeleteErr } = await supabase
+      .from('products')
+      .delete()
+      .in('business_id', businessIds);
+    if (productsDeleteErr) console.error('Erro deletando produtos durante reset:', productsDeleteErr);
+    else console.log('Produtos deletados durante reset');
+
+    // Delete custom sizes
+    const { error: sizesErr } = await supabase
+      .from('custom_sizes')
+      .delete()
+      .in('business_id', businessIds);
+    if (sizesErr) console.error('Erro deletando custom sizes durante reset:', sizesErr);
+    else console.log('Custom sizes deletados durante reset');
+
+    // Delete businesses
+    const { error: bizDeleteErr } = await supabase
+      .from('businesses')
+      .delete()
+      .in('id', businessIds);
+    if (bizDeleteErr) {
+      console.error('Erro deletando businesses durante reset:', bizDeleteErr);
+      throw bizDeleteErr;
+    }
+
+    console.log('resetBusinessesForUser: concluido');
+
+    // Clear local state
+    setBusiness(null);
+    setProducts([]);
+    setMovements([]);
+    setCustomSizes([]);
   };
 
   // ====================================================
@@ -279,9 +499,13 @@ export function useBusinessData() {
     addMovement,
     addCustomSize,
     deleteCustomSize,
+    deleteBusiness,
     
     // Refresh
     refreshProducts: fetchProducts,
     refreshMovements: fetchMovements,
+    refreshBusiness: refreshBusiness,
+    // Temporary destructive action
+    resetBusinessesForUser,
   };
 }

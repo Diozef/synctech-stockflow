@@ -32,7 +32,8 @@ export function MovementsScreen() {
   const { businessType, products, addMovement, loading } = useBusinessData();
   const config = getNicheConfig(businessType);
 
-  const initialType = (location.state as any)?.type || 'entrada';
+  type MovementsLocationState = { type?: 'entrada' | 'saida' };
+  const initialType = (location.state as MovementsLocationState)?.type || 'entrada';
   
   const [movementType, setMovementType] = useState<'entrada' | 'saida'>(initialType);
   const [selectedProductId, setSelectedProductId] = useState<string>('');

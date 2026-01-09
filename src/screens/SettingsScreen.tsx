@@ -54,7 +54,11 @@ export function SettingsScreen() {
     minStockAlert, 
     updateBusiness,
     canChangeBusinessType,
-    loading
+    loading,
+    deleteBusiness,
+    refreshProducts,
+    refreshBusiness,
+    resetBusinessesForUser
   } = useBusinessData();
   const config = getNicheConfig(businessType);
 
@@ -65,6 +69,8 @@ export function SettingsScreen() {
   const [showIndicators, setShowIndicators] = useState(true);
   const [localMinAlert, setLocalMinAlert] = useState(minStockAlert);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeletingBusiness, setIsDeletingBusiness] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   
   //React.useEffect(() => {
@@ -189,10 +195,48 @@ export function SettingsScreen() {
                 <Button
                   variant="outline"
                   className="w-full mt-2"
-                  onClick={() => navigate('/app/onboarding')}
+                  onClick={async () => {
+                    setIsDeletingBusiness(true);
+                    try {
+                      console.log('Iniciando troca de nicho...');
+                      console.log('Negócio atual:', business?.id, 'Tipo:', business?.business_type);
+                      
+                      sessionStorage.setItem('changingNiche', 'true');
+                      
+                      // Deletar negócio
+                      await deleteBusiness();
+                      console.log('Negócio deletado com sucesso');
+                      
+                      // Aguardar um pouco para garantir que Supabase processou
+                      await new Promise(resolve => setTimeout(resolve, 800));
+                      
+                      // Forçar refresh do estado
+                      console.log('Recarregando estado...');
+                      await refreshBusiness();
+                      
+                      console.log('Navigando para onboarding');
+                      navigate('/app/onboarding');
+                    } catch (error) {
+                      console.error('Erro ao trocar niche:', error);
+                      sessionStorage.removeItem('changingNiche');
+                      toast.error('Erro ao trocar o tipo de negócio');
+                    } finally {
+                      setIsDeletingBusiness(false);
+                    }
+                  }}
+                  disabled={isDeletingBusiness}
                 >
-                  Trocar tipo de negócio
-                  <ChevronRight className="w-4 h-4 ml-2" />
+                  {isDeletingBusiness ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Alterando...
+                    </>
+                  ) : (
+                    <>
+                      Trocar tipo de negócio
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </>
+                  )}
                 </Button>
               ) : (
                 <div className="mt-2 p-3 bg-warning/10 border border-warning/20 rounded-xl flex items-start gap-3">
@@ -347,6 +391,53 @@ export function SettingsScreen() {
               <LogOut className="w-4 h-4 mr-2" />
               Sair da conta
             </Button>
+
+            <div className="mt-3">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="w-full" disabled={isResetting}>
+                    {isResetting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin mr-2" />Resetando...</>
+                    ) : (
+                      <>Resetar dados do negócio (destrutivo)</>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar reset</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação removerá todos os seus negócios, produtos e movimentos. Não é reversível.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        setIsResetting(true);
+                        try {
+                          console.log('Usuário solicitou reset de negócios');
+                          await resetBusinessesForUser();
+                          // esperar para garantir que Supabase processe
+                          await new Promise(r => setTimeout(r, 800));
+                          await refreshBusiness();
+                          sessionStorage.setItem('changingNiche', 'true');
+                          toast.success('Dados removidos. Redirecionando...');
+                          navigate('/app/onboarding');
+                        } catch (error) {
+                          console.error('Erro ao resetar dados do negócio:', error);
+                          toast.error('Erro ao resetar dados');
+                        } finally {
+                          setIsResetting(false);
+                        }
+                      }}
+                    >
+                      Confirmar reset
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 export function OnboardingScreen() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { business, createBusiness, loading } = useBusinessData();
+  const { business, createBusiness, loading, refreshBusiness } = useBusinessData();
   const [selectedNiche, setSelectedNiche] = React.useState<'moda' | 'cosmeticos' | 'geral' | null>(null);
   const [isCreating, setIsCreating] = React.useState(false);
 
@@ -23,22 +23,37 @@ export function OnboardingScreen() {
   }, [authLoading, user, navigate]);
 
   // Redirect to dashboard if business already exists
+  // BUT: only redirect if we're not in the middle of a nicho change or creation
   React.useEffect(() => {
-    if (!loading && business) {
+    if (!loading && business && !isCreating) {
+      // Check if there's a recent deletion signal (from sessionStorage or a flag)
+      const isChangingNiche = sessionStorage.getItem('changingNiche');
+      if (isChangingNiche) {
+        sessionStorage.removeItem('changingNiche');
+        // Don't redirect - allow user to select new niche
+        return;
+      }
       navigate('/app/dashboard');
     }
-  }, [loading, business, navigate]);
+  }, [loading, business, navigate, isCreating]);
 
   const handleContinue = async () => {
     if (!selectedNiche) return;
     
     setIsCreating(true);
     try {
-      await createBusiness(selectedNiche);
+      // Create the new business with the selected niche
+      const newBusiness = await createBusiness(selectedNiche);
+      console.log('Business created:', newBusiness);
+      
+      // Wait a bit and force refresh to ensure Supabase returns the new business
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await refreshBusiness();
+      
+      // Navigate to confirm niche
       navigate('/app/confirm-niche');
     } catch (error) {
       console.error('Error creating business:', error);
-    } finally {
       setIsCreating(false);
     }
   };
