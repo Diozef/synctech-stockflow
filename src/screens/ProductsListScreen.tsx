@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,9 +43,18 @@ const SUBTITLES: Record<string, string> = {
 
 export function ProductsListScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { businessType, products, minStockAlert, addMovement, loading } = useBusinessData();
   const config = getNicheConfig(businessType);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expiringFilter, setExpiringFilter] = useState(false);
+
+  // Check if navigating with filter
+  useEffect(() => {
+    if (location.state?.filter === 'expiring') {
+      setExpiringFilter(true);
+    }
+  }, [location.state]);
 
   // Redireciona se não tiver tipo de negócio definido
   React.useEffect(() => {
@@ -64,11 +73,20 @@ export function ProductsListScreen() {
 
   if (!config) return null;
 
-  // Filtro de busca
-  const filteredProducts = products.filter(p => 
+  // Filtro de busca e vencimento
+  let filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.brand && p.brand.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  // Apply expiring filter if active
+  if (expiringFilter) {
+    filteredProducts = filteredProducts.filter(p => {
+      if (!p.expiration_date) return false;
+      const days = differenceInDays(new Date(p.expiration_date), new Date());
+      return days >= 0 && days <= 30;
+    });
+  }
 
   // Contadores para KPIs
   const lowStockCount = products.filter(p => p.quantity <= minStockAlert).length;
@@ -205,6 +223,23 @@ export function ProductsListScreen() {
           )}
         </div>
       </div>
+
+      {/* Filtro ativo de vencimentos */}
+      {expiringFilter && (
+        <div className="flex items-center justify-between mb-4 p-3 bg-warning/10 rounded-xl">
+          <span className="text-sm text-warning font-medium">
+            Mostrando produtos com vencimento próximo
+          </span>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setExpiringFilter(false)}
+            className="text-warning hover:text-warning"
+          >
+            Limpar filtro
+          </Button>
+        </div>
+      )}
 
       {/* Campo de busca */}
       <div className="relative mb-6 animate-fade-in" style={{ animationDelay: '100ms' }}>

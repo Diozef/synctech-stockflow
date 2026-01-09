@@ -70,7 +70,7 @@ export default function AuthScreen() {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
+          if (error.includes('Invalid login credentials')) {
             toast({
               title: 'Credenciais inválidas',
               description: 'Email ou senha incorretos. Verifique e tente novamente.',
@@ -79,7 +79,7 @@ export default function AuthScreen() {
           } else {
             toast({
               title: 'Erro ao entrar',
-              description: error.message,
+              description: error,
               variant: 'destructive',
             });
           }
@@ -93,7 +93,7 @@ export default function AuthScreen() {
       } else {
         const { error } = await signUp(email, password);
         if (error) {
-          if (error.message.includes('User already registered')) {
+          if (error.includes('User already registered')) {
             toast({
               title: 'Email já cadastrado',
               description: 'Este email já está em uso. Tente fazer login.',
@@ -102,7 +102,7 @@ export default function AuthScreen() {
           } else {
             toast({
               title: 'Erro ao cadastrar',
-              description: error.message,
+              description: error,
               variant: 'destructive',
             });
           }
