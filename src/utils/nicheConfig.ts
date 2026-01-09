@@ -1,5 +1,6 @@
-import { BusinessType } from '@/contexts/BusinessContext';
 import { Shirt, Sparkles, Package } from 'lucide-react';
+
+export type BusinessType = 'moda' | 'cosmeticos' | 'geral' | null;
 
 // ====================================================
 // CONFIGURAÇÕES POR NICHO

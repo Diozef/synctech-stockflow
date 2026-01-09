@@ -71,10 +71,19 @@ export function DashboardScreen() {
 
   if (!config || !businessType) return null;
 
+  // Get products with expiration date that are expiring soon (within 30 days)
+  const expiringProducts = products.filter(p => {
+    if (!p.expiration_date) return false;
+    const expirationDate = new Date(p.expiration_date);
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    return expirationDate >= today && expirationDate <= thirtyDaysFromNow;
+  });
+
   // Calculate stats
   const stats = {
     totalProducts: products.length,
-    alertCount: products.filter(p => p.quantity <= minStockAlert).length,
+    expiringCount: expiringProducts.length,
     recentMovements: movements.length,
   };
 
@@ -115,7 +124,11 @@ export function DashboardScreen() {
           ============================================ */}
       <div className="grid grid-cols-3 gap-3 mb-8">
         {/* Card 01: Produtos cadastrados */}
-        <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <Card 
+          className="animate-slide-up cursor-pointer hover:shadow-md transition-shadow" 
+          style={{ animationDelay: '100ms' }}
+          onClick={() => navigate('/app/products')}
+        >
           <CardContent className="p-4 text-center">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-2">
               <Package className="w-5 h-5 text-primary" />
@@ -127,27 +140,35 @@ export function DashboardScreen() {
           </CardContent>
         </Card>
 
-        {/* Card 02: Alertas (dinâmico por nicho) */}
-        <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
+        {/* Card 02: Próximos vencimentos */}
+        <Card 
+          className="animate-slide-up cursor-pointer hover:shadow-md transition-shadow" 
+          style={{ animationDelay: '150ms' }}
+          onClick={() => navigate('/app/products', { state: { filter: 'expiring' } })}
+        >
           <CardContent className="p-4 text-center">
             <div className={cn(
               "w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2",
-              stats.alertCount > 0 ? "bg-warning/10" : "bg-muted"
+              stats.expiringCount > 0 ? "bg-warning/10" : "bg-muted"
             )}>
               <AlertTriangle className={cn(
                 "w-5 h-5",
-                stats.alertCount > 0 ? "text-warning" : "text-muted-foreground"
+                stats.expiringCount > 0 ? "text-warning" : "text-muted-foreground"
               )} />
             </div>
-            <p className="text-2xl font-bold">{stats.alertCount}</p>
+            <p className="text-2xl font-bold">{stats.expiringCount}</p>
             <p className="text-xs text-muted-foreground leading-tight mt-1">
-              {ALERT_LABELS[businessType]}
+              Próx. vencimentos
             </p>
           </CardContent>
         </Card>
 
         {/* Card 03: Movimentações recentes */}
-        <Card className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+        <Card 
+          className="animate-slide-up cursor-pointer hover:shadow-md transition-shadow" 
+          style={{ animationDelay: '200ms' }}
+          onClick={() => navigate('/app/movements')}
+        >
           <CardContent className="p-4 text-center">
             <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center mx-auto mb-2">
               <TrendingUp className="w-5 h-5 text-success" />
@@ -230,10 +251,14 @@ export function DashboardScreen() {
             ) : (
               recentMovements.map((movement) => {
                 const product = products.find(p => p.id === movement.product_id);
+                const isEntry = movement.movement_type === 'entrada';
                 return (
                   <div 
                     key={movement.id}
-                    className="flex items-center gap-3 p-4"
+                    className={cn(
+                      "flex items-center gap-3 p-4",
+                      isEntry ? "bg-success/5" : "bg-destructive/5"
+                    )}
                   >
                     <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                       {product?.photo_url ? (
@@ -247,9 +272,9 @@ export function DashboardScreen() {
                       )}
                       <div className={cn(
                         "absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center border-2 border-background",
-                        movement.movement_type === 'entrada' ? "bg-success" : "bg-primary"
+                        isEntry ? "bg-success" : "bg-destructive"
                       )}>
-                        {movement.movement_type === 'entrada' ? (
+                        {isEntry ? (
                           <ArrowDownRight className="w-2.5 h-2.5 text-primary-foreground" />
                         ) : (
                           <ArrowUpRight className="w-2.5 h-2.5 text-primary-foreground" />
@@ -261,14 +286,14 @@ export function DashboardScreen() {
                         {product?.name || 'Produto'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {movement.movement_type === 'entrada' ? 'Entrada' : 'Saída'} • {formatDistanceToNow(new Date(movement.created_at), { addSuffix: true, locale: ptBR })}
+                        {isEntry ? 'Entrada' : 'Saída'} • {formatDistanceToNow(new Date(movement.created_at), { addSuffix: true, locale: ptBR })}
                       </p>
                     </div>
                     <div className={cn(
                       "text-sm font-semibold",
-                      movement.movement_type === 'entrada' ? "text-success" : "text-primary"
+                      isEntry ? "text-success" : "text-destructive"
                     )}>
-                      {movement.movement_type === 'entrada' ? '+' : '-'}{movement.quantity}
+                      {isEntry ? '+' : '-'}{movement.quantity}
                     </div>
                   </div>
                 );
