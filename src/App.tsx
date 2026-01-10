@@ -16,6 +16,7 @@ import { ProductsListScreen } from "@/screens/ProductsListScreen";
 import { MovementsScreen } from "@/screens/MovementsScreen";
 import { ReportsScreen } from "@/screens/ReportsScreen";
 import { SettingsScreen } from "@/screens/SettingsScreen";
+import { FinanceScreen } from "@/screens/FinanceScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,11 @@ const App = () => (
             <Route path="/app/movements" element={
               <ProtectedRoute requireBusiness>
                 <MovementsScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/finance" element={
+              <ProtectedRoute requireBusiness>
+                <FinanceScreen />
               </ProtectedRoute>
             } />
             <Route path="/app/reports" element={

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { useBusinessData } from '@/hooks/useBusiness';
+import { useFinance } from '@/hooks/useFinance';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -17,7 +18,8 @@ import {
   AlertCircle,
   Clock,
   ShoppingBag,
-  Loader2
+  Loader2,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -52,6 +54,7 @@ export function DashboardScreen() {
     minStockAlert,
     loading 
   } = useBusinessData();
+  const { transactions } = useFinance();
   const config = getNicheConfig(businessType);
 
   // Redirect if no business type selected
@@ -179,6 +182,56 @@ export function DashboardScreen() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* ============================================
+          SEÇÃO 2B: RESUMO FINANCEIRO
+          ============================================ */}
+      <div className="mb-8 animate-slide-up" style={{ animationDelay: '225ms' }}>
+        <div className="flex items-center gap-2 mb-4">
+          <DollarSign className="w-5 h-5 text-primary" />
+          <h2 className="text-base font-semibold">Resumo financeiro</h2>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          {/* Card: Total Receitas */}
+          <Card 
+            className="bg-green-50 border-green-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/app/finance')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <p className="text-xs font-medium text-green-700">Receitas</p>
+              </div>
+              <p className="text-xl font-bold text-green-600">
+                R$ {transactions
+                  .filter(t => t.finance_type === 'receita')
+                  .reduce((sum, t) => sum + Number(t.amount), 0)
+                  .toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card: Total Despesas */}
+          <Card 
+            className="bg-red-50 border-red-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/app/finance')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingDown className="w-4 h-4 text-red-600" />
+                <p className="text-xs font-medium text-red-700">Despesas</p>
+              </div>
+              <p className="text-xl font-bold text-red-600">
+                R$ {transactions
+                  .filter(t => t.finance_type === 'despesa')
+                  .reduce((sum, t) => sum + Number(t.amount), 0)
+                  .toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* ============================================

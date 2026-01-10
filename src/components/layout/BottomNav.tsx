@@ -19,7 +19,7 @@
 
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Package, ArrowUpDown, BarChart3, Settings } from 'lucide-react';
+import { Home, Package, ArrowUpDown, BarChart3, Settings, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
@@ -36,11 +36,12 @@ export function BottomNav() {
   const { business } = useBusinessData();
   const config = getNicheConfig(business?.business_type || null);
 
-  // Definição das 5 abas principais da navegação
+  // Definição das 6 abas principais da navegação (agora com Finanças)
   const navItems: NavItem[] = [
     { icon: Home, label: 'Dashboard', path: '/app/dashboard' },
     { icon: Package, label: 'Estoque', path: '/app/products' },
     { icon: ArrowUpDown, label: 'Movimentar', path: '/app/movements' },
+    { icon: DollarSign, label: 'Finanças', path: '/app/finance' },
     { icon: BarChart3, label: 'Relatórios', path: '/app/reports' },
     { icon: Settings, label: 'Ajustes', path: '/app/settings' },
   ];
