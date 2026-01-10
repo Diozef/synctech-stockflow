@@ -1,4 +1,4 @@
--- ====================================================
+﻿-- ====================================================
 -- MÓDULO FINANCEIRO - ESTRUTURA DO BANCO DE DADOS
 -- (versão defensiva: tenta criar extensões se possível e usa checks IF NOT EXISTS)
 -- ====================================================
