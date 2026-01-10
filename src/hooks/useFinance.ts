@@ -101,6 +101,8 @@ export const useFinance = () => {
       amount: number;
       description: string;
       notes?: string;
+      product_id?: string;
+      stock_movement_id?: string;
     }) => {
       if (!business?.id) throw new Error('Business not found');
       

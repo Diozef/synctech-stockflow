@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,17 +10,24 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { useFinance, FinanceType, FinanceCategory } from '@/hooks/useFinance';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusinessData } from '@/hooks/useBusiness';
+import { getNicheConfig } from '@/utils/nicheConfig';
 import { 
   Plus, 
+  Minus,
   X, 
   DollarSign, 
   Loader2, 
   Filter,
   Search,
   Trash2,
-  ChevronLeft,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Clock,
+  Package,
+  Check,
+  Wallet,
+  PiggyBank,
+  Receipt
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,7 +43,8 @@ import { cn } from '@/lib/utils';
 export function FinanceScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { business } = useBusinessData();
+  const { business, businessType, products } = useBusinessData();
+  const config = getNicheConfig(businessType);
   const {
     transactions,
     isLoading,
@@ -57,6 +65,10 @@ export function FinanceScreen() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Product sale state (for vendas category)
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [saleQuantity, setSaleQuantity] = useState(1);
+
   // Filter state
   const [filterType, setFilterType] = useState<'all' | 'receita' | 'despesa'>('all');
   const [filterCategory, setFilterCategory] = useState<'all' | FinanceCategory>('all');
@@ -64,13 +76,29 @@ export function FinanceScreen() {
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Edit state
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const selectedProduct = products.find(p => p.id === selectedProductId);
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!amount || !description) {
+    // For sales, calculate amount from product
+    let finalAmount = parseFloat(amount);
+    let finalDescription = description;
+    let productId: string | undefined = undefined;
+
+    if (financeType === 'receita' && category === 'vendas' && selectedProductId) {
+      if (!selectedProduct) {
+        toast({
+          title: 'Erro',
+          description: 'Selecione um produto',
+          variant: 'destructive'
+        });
+        return;
+      }
+      finalAmount = selectedProduct.price * saleQuantity;
+      finalDescription = `Venda: ${selectedProduct.name} (${saleQuantity}x)`;
+      productId = selectedProductId;
+    } else if (!amount || !description) {
       toast({
         title: 'Erro',
         description: 'Preencha os campos obrigatórios',
@@ -84,20 +112,23 @@ export function FinanceScreen() {
       await addTransaction.mutateAsync({
         finance_type: financeType,
         category,
-        amount: parseFloat(amount),
-        description,
-        notes: notes || undefined
+        amount: finalAmount,
+        description: finalDescription,
+        notes: notes || undefined,
+        product_id: productId
       });
 
       toast({
-        title: 'Sucesso',
-        description: 'Transação registrada com sucesso'
+        title: 'Sucesso!',
+        description: financeType === 'receita' ? 'Receita registrada' : 'Despesa registrada'
       });
 
       // Reset form
       setAmount('');
       setDescription('');
       setNotes('');
+      setSelectedProductId('');
+      setSaleQuantity(1);
       setCategory(financeType === 'receita' ? 'vendas' : 'aluguel');
     } catch (error) {
       console.error('Error adding transaction:', error);
@@ -118,7 +149,7 @@ export function FinanceScreen() {
       await deleteTransaction.mutateAsync(id);
       toast({
         title: 'Sucesso',
-        description: 'Transação deletada com sucesso'
+        description: 'Transação deletada'
       });
     } catch (error) {
       console.error('Error deleting transaction:', error);
@@ -142,7 +173,7 @@ export function FinanceScreen() {
         if (filterDateTo && txnDate > endOfDay(new Date(filterDateTo))) return false;
       }
 
-      if (searchQuery && !txn.description.toLowerCase().includes(searchQuery.toLowerCase())) {
+      if (searchQuery && !txn.description?.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
       }
 
@@ -160,10 +191,16 @@ export function FinanceScreen() {
     setSearchQuery('');
   };
 
+  const hasActiveFilters = filterType !== 'all' || filterCategory !== 'all' || filterDateFrom || filterDateTo || searchQuery;
+
   const handleFinanceTypeChange = (type: FinanceType) => {
     setFinanceType(type);
     const defaultCategory = FINANCE_CATEGORIES[type][0];
     setCategory(defaultCategory);
+    setSelectedProductId('');
+    setSaleQuantity(1);
+    setAmount('');
+    setDescription('');
   };
 
   if (isLoading) {
@@ -174,316 +211,486 @@ export function FinanceScreen() {
     );
   }
 
+  const isProductSale = financeType === 'receita' && category === 'vendas';
+
   return (
     <MobileLayout>
-      <div className="space-y-6 pb-20">
+      <div className="space-y-6 pb-24">
         {/* Header */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/app/dashboard')} className="p-2">
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <DollarSign className="h-8 w-8 text-primary" />
-              Finanças
-            </h1>
+        <div className="animate-fade-in">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+              <Wallet className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Finanças</h1>
+              <p className="text-sm text-muted-foreground">Controle suas receitas e despesas</p>
+            </div>
           </div>
-          <p className="text-muted-foreground">Gerencie receitas e despesas</p>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-green-50 border-green-200">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Receitas</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    R$ {summary.totalRevenue.toFixed(2)}
-                  </p>
+        <div className="grid grid-cols-3 gap-3 animate-slide-up">
+          <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-200/50 dark:border-emerald-800/50">
+            <CardContent className="p-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-2">
+                  <TrendingUp className="h-5 w-5 text-emerald-600" />
                 </div>
-                <TrendingUp className="h-8 w-8 text-green-600 opacity-50" />
+                <p className="text-xs text-muted-foreground mb-1">Receitas</p>
+                <p className="text-lg font-bold text-emerald-600">
+                  R$ {summary.totalRevenue.toFixed(0)}
+                </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-red-50 border-red-200">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Despesas</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    R$ {summary.totalExpense.toFixed(2)}
-                  </p>
+          <Card className="bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-200/50 dark:border-rose-800/50">
+            <CardContent className="p-4">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center mb-2">
+                  <TrendingDown className="h-5 w-5 text-rose-600" />
                 </div>
-                <TrendingDown className="h-8 w-8 text-red-600 opacity-50" />
+                <p className="text-xs text-muted-foreground mb-1">Despesas</p>
+                <p className="text-lg font-bold text-rose-600">
+                  R$ {summary.totalExpense.toFixed(0)}
+                </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className={cn("border-2", summary.balance >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200")}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Saldo</p>
-                  <p className={cn("text-2xl font-bold", summary.balance >= 0 ? "text-blue-600" : "text-orange-600")}>
-                    R$ {summary.balance.toFixed(2)}
-                  </p>
+          <Card className={cn(
+            "border-2",
+            summary.balance >= 0 
+              ? "bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-200/50 dark:border-blue-800/50" 
+              : "bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-200/50 dark:border-orange-800/50"
+          )}>
+            <CardContent className="p-4">
+              <div className="flex flex-col items-center text-center">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center mb-2",
+                  summary.balance >= 0 ? "bg-blue-500/20" : "bg-orange-500/20"
+                )}>
+                  <PiggyBank className={cn("h-5 w-5", summary.balance >= 0 ? "text-blue-600" : "text-orange-600")} />
                 </div>
-                <DollarSign className={cn("h-8 w-8 opacity-50", summary.balance >= 0 ? "text-blue-600" : "text-orange-600")} />
+                <p className="text-xs text-muted-foreground mb-1">Saldo</p>
+                <p className={cn("text-lg font-bold", summary.balance >= 0 ? "text-blue-600" : "text-orange-600")}>
+                  R$ {summary.balance.toFixed(0)}
+                </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="register">Registrar</TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <TabsList className="grid w-full grid-cols-2 h-12">
+            <TabsTrigger value="register" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Plus className="w-4 h-4" />
+              Registrar
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Clock className="w-4 h-4" />
+              Histórico
+            </TabsTrigger>
           </TabsList>
 
           {/* Register Tab */}
-          <TabsContent value="register" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Nova Transação</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleAddTransaction} className="space-y-4">
-                  {/* Finance Type Selection */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant={financeType === 'receita' ? 'default' : 'outline'}
-                      className="bg-green-600 hover:bg-green-700"
-                      onClick={() => handleFinanceTypeChange('receita')}
-                    >
-                      <TrendingUp className="h-4 w-4 mr-2" />
-                      Receita
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={financeType === 'despesa' ? 'default' : 'outline'}
-                      className="bg-red-600 hover:bg-red-700"
-                      onClick={() => handleFinanceTypeChange('despesa')}
-                    >
-                      <TrendingDown className="h-4 w-4 mr-2" />
-                      Despesa
-                    </Button>
+          <TabsContent value="register" className="mt-6 space-y-6">
+            {/* Finance Type Toggle */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant={financeType === 'receita' ? 'default' : 'outline'}
+                size="lg"
+                className={cn(
+                  "h-16 flex-col gap-1 transition-all",
+                  financeType === 'receita' && "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/25"
+                )}
+                onClick={() => handleFinanceTypeChange('receita')}
+              >
+                <TrendingUp className="w-6 h-6" />
+                <span className="text-sm font-medium">Receita</span>
+              </Button>
+              <Button
+                type="button"
+                variant={financeType === 'despesa' ? 'default' : 'outline'}
+                size="lg"
+                className={cn(
+                  "h-16 flex-col gap-1 transition-all",
+                  financeType === 'despesa' && "bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-600/25"
+                )}
+                onClick={() => handleFinanceTypeChange('despesa')}
+              >
+                <TrendingDown className="w-6 h-6" />
+                <span className="text-sm font-medium">Despesa</span>
+              </Button>
+            </div>
+
+            <form onSubmit={handleAddTransaction} className="space-y-5">
+              {/* Category */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Categoria</Label>
+                <Select 
+                  value={category} 
+                  onValueChange={(value) => {
+                    setCategory(value as FinanceCategory);
+                    if (value !== 'vendas') {
+                      setSelectedProductId('');
+                      setSaleQuantity(1);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FINANCE_CATEGORIES[financeType].map(cat => (
+                      <SelectItem key={cat} value={cat}>
+                        {CATEGORY_LABELS[cat]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Product Selection for Sales */}
+              {isProductSale && (
+                <div className="space-y-4 p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-800/50">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                    <Receipt className="w-5 h-5" />
+                    <span className="font-medium">Venda de Produto</span>
                   </div>
 
-                  {/* Category */}
+                  {/* Product Selection */}
                   <div className="space-y-2">
-                    <Label htmlFor="category">Categoria</Label>
-                    <Select value={category} onValueChange={(value) => setCategory(value as FinanceCategory)}>
-                      <SelectTrigger id="category">
-                        <SelectValue />
+                    <Label className="text-sm font-medium">
+                      Selecione o {config?.labels.product.toLowerCase() || 'produto'}
+                    </Label>
+                    <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                      <SelectTrigger className="h-14 bg-background">
+                        <SelectValue placeholder={`Escolha um ${config?.labels.product.toLowerCase() || 'produto'}`} />
                       </SelectTrigger>
                       <SelectContent>
-                        {FINANCE_CATEGORIES[financeType].map(cat => (
-                          <SelectItem key={cat} value={cat}>
-                            {CATEGORY_LABELS[cat]}
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                                {product.photo_url ? (
+                                  <img 
+                                    src={product.photo_url} 
+                                    alt={product.name} 
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="w-4 h-4 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <span className="font-medium">{product.name}</span>
+                                <span className="text-muted-foreground ml-2">
+                                  R$ {product.price.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
+                  {/* Selected Product Info */}
+                  {selectedProduct && (
+                    <Card className="bg-background">
+                      <CardContent className="p-4 flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
+                          {selectedProduct.photo_url ? (
+                            <img 
+                              src={selectedProduct.photo_url} 
+                              alt={selectedProduct.name} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Package className="w-7 h-7 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{selectedProduct.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Preço: <span className="font-medium text-foreground">R$ {selectedProduct.price.toFixed(2)}</span>
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Quantity */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Quantidade</Label>
+                    <div className="flex items-center justify-center gap-6">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-12 w-12 rounded-xl"
+                        onClick={() => setSaleQuantity(Math.max(1, saleQuantity - 1))}
+                      >
+                        <Minus className="w-5 h-5" />
+                      </Button>
+                      <Input
+                        type="number"
+                        value={saleQuantity}
+                        onChange={(e) => setSaleQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-20 h-12 text-center text-xl font-bold bg-background"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-12 w-12 rounded-xl"
+                        onClick={() => setSaleQuantity(saleQuantity + 1)}
+                      >
+                        <Plus className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Total Preview */}
+                  {selectedProduct && (
+                    <div className="text-center p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                      <p className="text-sm text-muted-foreground mb-1">Valor Total</p>
+                      <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                        R$ {(selectedProduct.price * saleQuantity).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Manual Amount/Description for non-product sales */}
+              {!isProductSale && (
+                <>
                   {/* Amount */}
                   <div className="space-y-2">
-                    <Label htmlFor="amount">Valor (R$)</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      disabled={isSubmitting}
-                    />
+                    <Label className="text-sm font-medium">Valor (R$)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="h-14 pl-12 text-lg font-semibold"
+                        disabled={isSubmitting}
+                      />
+                    </div>
                   </div>
 
                   {/* Description */}
                   <div className="space-y-2">
-                    <Label htmlFor="description">Descrição *</Label>
+                    <Label className="text-sm font-medium">Descrição *</Label>
                     <Input
-                      id="description"
-                      placeholder="Ex: Venda do produto X"
+                      placeholder="Ex: Pagamento de conta de luz"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
+                      className="h-12"
                       disabled={isSubmitting}
                     />
                   </div>
+                </>
+              )}
 
-                  {/* Notes */}
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Observações</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Notas adicionais..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      disabled={isSubmitting}
-                      rows={3}
-                    />
-                  </div>
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Observações (opcional)</Label>
+                <Textarea
+                  placeholder="Notas adicionais..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  disabled={isSubmitting}
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isSubmitting || !amount || !description}
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4 mr-2" />
-                    )}
-                    Registrar Transação
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                size="lg"
+                className={cn(
+                  "w-full h-14 text-base font-semibold transition-all",
+                  financeType === 'receita' 
+                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/25" 
+                    : "bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-600/25"
+                )}
+                disabled={isSubmitting || (isProductSale ? !selectedProductId : (!amount || !description))}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                ) : (
+                  <Check className="h-5 w-5 mr-2" />
+                )}
+                Registrar {financeType === 'receita' ? 'Receita' : 'Despesa'}
+              </Button>
+            </form>
           </TabsContent>
 
           {/* History Tab */}
-          <TabsContent value="history" className="space-y-4">
-            {/* Filters */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
-                  Filtros
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Search */}
-                <div className="space-y-2">
-                  <Label htmlFor="search">Buscar descrição</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="search"
-                      placeholder="Buscar..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
+          <TabsContent value="history" className="mt-6 space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar transações..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-11"
+              />
+            </div>
 
-                {/* Type Filter */}
-                <div className="space-y-2">
-                  <Label htmlFor="filter-type">Tipo</Label>
-                  <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                    <SelectTrigger id="filter-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="receita">Receitas</SelectItem>
-                      <SelectItem value="despesa">Despesas</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {/* Filters */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Filter className="w-4 h-4" />
+                  Filtros
                 </div>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs">
+                    <X className="w-3 h-3 mr-1" />
+                    Limpar
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Type Filter */}
+                <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="receita">Receitas</SelectItem>
+                    <SelectItem value="despesa">Despesas</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* Category Filter */}
-                <div className="space-y-2">
-                  <Label htmlFor="filter-category">Categoria</Label>
-                  <Select value={filterCategory} onValueChange={(value: any) => setFilterCategory(value)}>
-                    <SelectTrigger id="filter-category">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select value={filterCategory} onValueChange={(value: any) => setFilterCategory(value)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                {/* Date Range */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="date-from">De</Label>
-                    <Input
-                      id="date-from"
-                      type="date"
-                      value={filterDateFrom}
-                      onChange={(e) => setFilterDateFrom(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="date-to">Até</Label>
-                    <Input
-                      id="date-to"
-                      type="date"
-                      value={filterDateTo}
-                      onChange={(e) => setFilterDateTo(e.target.value)}
-                    />
-                  </div>
+              {/* Date Range */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">De</Label>
+                  <Input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    className="h-10"
+                  />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Até</Label>
+                  <Input
+                    type="date"
+                    value={filterDateTo}
+                    onChange={(e) => setFilterDateTo(e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+              </div>
+            </div>
 
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={clearFilters}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Limpar Filtros
-                </Button>
-              </CardContent>
-            </Card>
+            {/* Results count */}
+            <div className="flex items-center justify-between text-sm text-muted-foreground py-2">
+              <span>{filteredTransactions.length} transações encontradas</span>
+            </div>
 
             {/* Transactions List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  Histórico de Transações ({filteredTransactions.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {filteredTransactions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nenhuma transação encontrada
+            {filteredTransactions.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                    <Receipt className="w-8 h-8 text-muted-foreground" />
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredTransactions.map((txn) => (
-                      <div
-                        key={txn.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="font-medium">{txn.description}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {CATEGORY_LABELS[txn.category]} • {format(new Date(txn.created_at), 'dd MMM yyyy', { locale: ptBR })}
+                  <h3 className="font-semibold text-lg mb-2">Nenhuma transação</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {hasActiveFilters ? 'Nenhuma transação corresponde aos filtros' : 'Comece registrando sua primeira transação'}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {filteredTransactions.map((txn) => (
+                  <Card 
+                    key={txn.id}
+                    className={cn(
+                      "transition-all hover:shadow-md",
+                      txn.finance_type === 'receita' 
+                        ? "border-l-4 border-l-emerald-500" 
+                        : "border-l-4 border-l-rose-500"
+                    )}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                            txn.finance_type === 'receita' 
+                              ? "bg-emerald-100 dark:bg-emerald-900/30" 
+                              : "bg-rose-100 dark:bg-rose-900/30"
+                          )}>
+                            {txn.finance_type === 'receita' ? (
+                              <TrendingUp className="w-5 h-5 text-emerald-600" />
+                            ) : (
+                              <TrendingDown className="w-5 h-5 text-rose-600" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{txn.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {CATEGORY_LABELS[txn.category]} • {format(new Date(txn.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                            </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className={cn(
-                            "font-bold text-lg",
-                            txn.finance_type === 'receita' ? "text-green-600" : "text-red-600"
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={cn(
+                            "font-bold text-base",
+                            txn.finance_type === 'receita' ? "text-emerald-600" : "text-rose-600"
                           )}>
-                            {txn.finance_type === 'receita' ? '+' : '-'} R$ {Number(txn.amount).toFixed(2)}
-                          </div>
-                          <button
+                            {txn.finance_type === 'receita' ? '+' : '-'} R$ {txn.amount.toFixed(2)}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             onClick={() => handleDeleteTransaction(txn.id)}
-                            className="text-xs text-muted-foreground hover:text-destructive transition-colors"
                           >
                             <Trash2 className="h-4 w-4" />
-                          </button>
+                          </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
