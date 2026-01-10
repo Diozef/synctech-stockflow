@@ -1,12 +1,43 @@
 -- ====================================================
 -- MÓDULO FINANCEIRO - ESTRUTURA DO BANCO DE DADOS
+-- (versão defensiva: tenta criar extensões se possível e usa checks IF NOT EXISTS)
 -- ====================================================
 
--- Tipo enum para tipo de transação financeira
-CREATE TYPE public.finance_type AS ENUM ('receita', 'despesa');
+-- Garantir funções de UUID (pgcrypto ou uuid-ossp) quando possível
+DO $$
+BEGIN
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+  EXCEPTION WHEN others THEN
+    -- se não for permitido, ignorar (provider como Lovable pode restringir)
+    NULL;
+  END;
 
--- Tipo enum para categoria de transação
-CREATE TYPE public.finance_category AS ENUM ('vendas', 'devolucao', 'aluguel', 'energia', 'agua', 'internet', 'folha_pagamento', 'marketing', 'manutencao', 'outro');
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+  EXCEPTION WHEN others THEN
+    NULL;
+  END;
+END;
+$$;
+
+-- Tipo enum para tipo de transação financeira (cria somente se não existir)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'finance_type') THEN
+    CREATE TYPE public.finance_type AS ENUM ('receita', 'despesa');
+  END IF;
+END;
+$$;
+
+-- Tipo enum para categoria de transação (cria somente se não existir)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'finance_category') THEN
+    CREATE TYPE public.finance_category AS ENUM ('vendas', 'devolucao', 'aluguel', 'energia', 'agua', 'internet', 'folha_pagamento', 'marketing', 'manutencao', 'outro');
+  END IF;
+END;
+$$;
 
 -- ====================================================
 -- TABELA: financial_transactions (Transações financeiras)

@@ -1,0 +1,8 @@
+# Force UTF-8 and LF for SQL files to avoid encoding display issues
+*.sql text working-tree-encoding=UTF-8 eol=lf
+
+# Normalize other common text files
+*.md text working-tree-encoding=UTF-8 eol=lf
+*.ts text working-tree-encoding=UTF-8 eol=lf
+*.tsx text working-tree-encoding=UTF-8 eol=lf
+*.json text working-tree-encoding=UTF-8 eol=lf
