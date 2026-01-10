@@ -11,7 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   Package, 
   AlertTriangle, 
-  TrendingUp, 
+  TrendingUp,
+  TrendingDown,
   Plus,
   ArrowDownRight,
   ArrowUpRight,
