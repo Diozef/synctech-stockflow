@@ -76,6 +76,70 @@ export type Database = {
           },
         ]
       }
+      financial_transactions: {
+        Row: {
+          amount: number
+          business_id: string
+          category: Database["public"]["Enums"]["finance_category"]
+          created_at: string
+          description: string | null
+          finance_type: Database["public"]["Enums"]["finance_type"]
+          id: string
+          notes: string | null
+          product_id: string | null
+          stock_movement_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          business_id: string
+          category: Database["public"]["Enums"]["finance_category"]
+          created_at?: string
+          description?: string | null
+          finance_type: Database["public"]["Enums"]["finance_type"]
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          stock_movement_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          category?: Database["public"]["Enums"]["finance_category"]
+          created_at?: string
+          description?: string | null
+          finance_type?: Database["public"]["Enums"]["finance_type"]
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          stock_movement_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_stock_movement_id_fkey"
+            columns: ["stock_movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variations: {
         Row: {
           color: string
@@ -252,10 +316,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      safe_uuid_generate: { Args: never; Returns: string }
     }
     Enums: {
       business_type: "moda" | "cosmeticos" | "geral"
+      finance_category:
+        | "vendas"
+        | "devolucao"
+        | "aluguel"
+        | "energia"
+        | "agua"
+        | "internet"
+        | "folha_pagamento"
+        | "marketing"
+        | "manutencao"
+        | "outro"
+      finance_type: "receita" | "despesa"
       movement_type: "entrada" | "saida"
       size_category: "letras" | "numeracao" | "calcados" | "personalizado"
       subscription_status: "trial" | "active" | "cancelled" | "expired"
@@ -387,6 +463,19 @@ export const Constants = {
   public: {
     Enums: {
       business_type: ["moda", "cosmeticos", "geral"],
+      finance_category: [
+        "vendas",
+        "devolucao",
+        "aluguel",
+        "energia",
+        "agua",
+        "internet",
+        "folha_pagamento",
+        "marketing",
+        "manutencao",
+        "outro",
+      ],
+      finance_type: ["receita", "despesa"],
       movement_type: ["entrada", "saida"],
       size_category: ["letras", "numeracao", "calcados", "personalizado"],
       subscription_status: ["trial", "active", "cancelled", "expired"],

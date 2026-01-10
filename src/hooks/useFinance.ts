@@ -11,10 +11,10 @@ export interface FinancialTransaction {
   finance_type: FinanceType;
   category: FinanceCategory;
   amount: number;
-  description: string;
-  notes?: string;
-  stock_movement_id?: string;
-  product_id?: string;
+  description: string | null;
+  notes?: string | null;
+  stock_movement_id?: string | null;
+  product_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -63,19 +63,32 @@ export const useFinance = () => {
     enabled: !!user
   });
 
-  // Fetch financial transactions
+  // Fetch financial transactions - using direct REST API since table is new and types not yet generated
   const { data: transactions = [], isLoading, error, refetch } = useQuery({
     queryKey: ['financial_transactions', business?.id],
     queryFn: async () => {
       if (!business?.id) return [];
-      const { data, error } = await supabase
-        .from('financial_transactions')
-        .select('*')
-        .eq('business_id', business.id)
-        .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      return (data || []) as FinancialTransaction[];
+      const session = await supabase.auth.getSession();
+      
+      // Direct fetch from the table using explicit typing
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/financial_transactions?business_id=eq.${business.id}&order=created_at.desc`,
+        {
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${session.data.session?.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch financial transactions');
+      }
+      
+      const result = await response.json();
+      return (result || []) as FinancialTransaction[];
     },
     enabled: !!business?.id
   });
@@ -91,19 +104,30 @@ export const useFinance = () => {
     }) => {
       if (!business?.id) throw new Error('Business not found');
       
-      const { data, error } = await supabase
-        .from('financial_transactions')
-        .insert([
-          {
+      const session = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/financial_transactions`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${session.data.session?.access_token}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
             business_id: business.id,
             ...input
-          }
-        ])
-        .select()
-        .single();
+          })
+        }
+      );
       
-      if (error) throw error;
-      return data as FinancialTransaction;
+      if (!response.ok) {
+        throw new Error('Failed to add transaction');
+      }
+      
+      const result = await response.json();
+      return result[0] as FinancialTransaction;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
@@ -120,22 +144,34 @@ export const useFinance = () => {
       description: string;
       notes?: string;
     }) => {
-      const { data, error } = await supabase
-        .from('financial_transactions')
-        .update({
-          finance_type: input.finance_type,
-          category: input.category,
-          amount: input.amount,
-          description: input.description,
-          notes: input.notes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', input.id)
-        .select()
-        .single();
+      const session = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/financial_transactions?id=eq.${input.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${session.data.session?.access_token}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
+            finance_type: input.finance_type,
+            category: input.category,
+            amount: input.amount,
+            description: input.description,
+            notes: input.notes,
+            updated_at: new Date().toISOString()
+          })
+        }
+      );
       
-      if (error) throw error;
-      return data as FinancialTransaction;
+      if (!response.ok) {
+        throw new Error('Failed to update transaction');
+      }
+      
+      const result = await response.json();
+      return result[0] as FinancialTransaction;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
@@ -145,12 +181,22 @@ export const useFinance = () => {
   // Delete transaction mutation
   const deleteTransaction = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('financial_transactions')
-        .delete()
-        .eq('id', id);
+      const session = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/financial_transactions?id=eq.${id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${session.data.session?.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to delete transaction');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
