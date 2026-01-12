@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { useFinance, FinanceType, FinanceCategory } from '@/hooks/useFinance';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { 
@@ -42,6 +44,7 @@ import { cn } from '@/lib/utils';
 
 export function FinanceScreen() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { business, businessType, products } = useBusinessData();
   const config = getNicheConfig(businessType);
@@ -95,6 +98,26 @@ export function FinanceScreen() {
         });
         return;
       }
+      
+      // Validate stock availability
+      if (selectedProduct.quantity <= 0) {
+        toast({
+          title: 'Estoque insuficiente',
+          description: 'Este produto não possui estoque disponível',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      if (saleQuantity > selectedProduct.quantity) {
+        toast({
+          title: 'Estoque insuficiente',
+          description: `Disponível: ${selectedProduct.quantity} unidade(s)`,
+          variant: 'destructive'
+        });
+        return;
+      }
+      
       finalAmount = selectedProduct.price * saleQuantity;
       finalDescription = `Venda: ${selectedProduct.name} (${saleQuantity}x)`;
       productId = selectedProductId;
@@ -109,19 +132,46 @@ export function FinanceScreen() {
 
     setIsSubmitting(true);
     try {
-      await addTransaction.mutateAsync({
-        finance_type: financeType,
-        category,
-        amount: finalAmount,
-        description: finalDescription,
-        notes: notes || undefined,
-        product_id: productId
-      });
+      // For product sales, create stock movement first (saída)
+      if (financeType === 'receita' && category === 'vendas' && selectedProductId) {
+        const { error: stockError } = await supabase
+          .from('stock_movements')
+          .insert({
+            product_id: selectedProductId,
+            movement_type: 'saida',
+            quantity: saleQuantity,
+            observation: `Venda registrada via Finanças`
+          });
+        
+        if (stockError) {
+          throw new Error('Falha ao atualizar estoque: ' + stockError.message);
+        }
+        
+        // The trigger on stock_movements will automatically create the financial transaction
+        // So we don't need to create it manually for sales
+        toast({
+          title: 'Venda registrada!',
+          description: `${saleQuantity}x ${selectedProduct?.name} - Estoque atualizado`
+        });
+      } else {
+        // For non-product transactions, add manually
+        await addTransaction.mutateAsync({
+          finance_type: financeType,
+          category,
+          amount: finalAmount,
+          description: finalDescription,
+          notes: notes || undefined,
+          product_id: productId
+        });
 
-      toast({
-        title: 'Sucesso!',
-        description: financeType === 'receita' ? 'Receita registrada' : 'Despesa registrada'
-      });
+        toast({
+          title: 'Sucesso!',
+          description: financeType === 'receita' ? 'Receita registrada' : 'Despesa registrada'
+        });
+      }
+
+      // Invalidate products query to refresh stock
+      queryClient.invalidateQueries({ queryKey: ['products'] });
 
       // Reset form
       setAmount('');
@@ -134,7 +184,7 @@ export function FinanceScreen() {
       console.error('Error adding transaction:', error);
       toast({
         title: 'Erro',
-        description: 'Falha ao registrar transação',
+        description: error instanceof Error ? error.message : 'Falha ao registrar transação',
         variant: 'destructive'
       });
     } finally {
@@ -419,6 +469,13 @@ export function FinanceScreen() {
                           <p className="text-sm text-muted-foreground">
                             Preço: <span className="font-medium text-foreground">R$ {selectedProduct.price.toFixed(2)}</span>
                           </p>
+                          <p className={cn(
+                            "text-sm font-medium",
+                            selectedProduct.quantity <= 0 ? "text-destructive" : 
+                            selectedProduct.quantity <= 5 ? "text-orange-500" : "text-emerald-600"
+                          )}>
+                            Estoque: {selectedProduct.quantity} unidade(s)
+                          </p>
                         </div>
                       </CardContent>
                     </Card>
@@ -440,19 +497,32 @@ export function FinanceScreen() {
                       <Input
                         type="number"
                         value={saleQuantity}
-                        onChange={(e) => setSaleQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                        onChange={(e) => {
+                          const maxQty = selectedProduct?.quantity || 1;
+                          setSaleQuantity(Math.min(maxQty, Math.max(1, parseInt(e.target.value) || 1)));
+                        }}
                         className="w-20 h-12 text-center text-xl font-bold bg-background"
+                        max={selectedProduct?.quantity || 1}
                       />
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
                         className="h-12 w-12 rounded-xl"
-                        onClick={() => setSaleQuantity(saleQuantity + 1)}
+                        onClick={() => {
+                          const maxQty = selectedProduct?.quantity || 1;
+                          setSaleQuantity(Math.min(maxQty, saleQuantity + 1));
+                        }}
+                        disabled={selectedProduct && saleQuantity >= selectedProduct.quantity}
                       >
                         <Plus className="w-5 h-5" />
                       </Button>
                     </div>
+                    {selectedProduct && selectedProduct.quantity <= 0 && (
+                      <p className="text-sm text-destructive text-center font-medium">
+                        Produto sem estoque disponível
+                      </p>
+                    )}
                   </div>
 
                   {/* Total Preview */}
