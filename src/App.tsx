@@ -17,6 +17,9 @@ import { MovementsScreen } from "@/screens/MovementsScreen";
 import { ReportsScreen } from "@/screens/ReportsScreen";
 import { SettingsScreen } from "@/screens/SettingsScreen";
 import { FinanceScreen } from "@/screens/FinanceScreen";
+import { CustomersScreen } from "@/screens/CustomersScreen";
+import { CaderninhoScreen } from "@/screens/CaderninhoScreen";
+import { NewSaleScreen } from "@/screens/NewSaleScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +76,21 @@ const App = () => (
             <Route path="/app/finance" element={
               <ProtectedRoute requireBusiness>
                 <FinanceScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/customers" element={
+              <ProtectedRoute requireBusiness>
+                <CustomersScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/caderninho" element={
+              <ProtectedRoute requireBusiness>
+                <CaderninhoScreen />
+              </ProtectedRoute>
+            } />
+            <Route path="/app/caderninho/nova-venda" element={
+              <ProtectedRoute requireBusiness>
+                <NewSaleScreen />
               </ProtectedRoute>
             } />
             <Route path="/app/reports" element={
