@@ -14,8 +14,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { 
-  Plus, 
-  Minus,
   X, 
   DollarSign, 
   Loader2, 
@@ -25,7 +23,6 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
-  Package,
   Check,
   Wallet,
   PiggyBank,
@@ -68,10 +65,6 @@ export function FinanceScreen() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Product sale state (for vendas category)
-  const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [saleQuantity, setSaleQuantity] = useState(1);
-
   // Filter state
   const [filterType, setFilterType] = useState<'all' | 'receita' | 'despesa'>('all');
   const [filterCategory, setFilterCategory] = useState<'all' | FinanceCategory>('all');
@@ -79,49 +72,11 @@ export function FinanceScreen() {
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const selectedProduct = products.find(p => p.id === selectedProductId);
-
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // For sales, calculate amount from product
-    let finalAmount = parseFloat(amount);
-    let finalDescription = description;
-    let productId: string | undefined = undefined;
 
-    if (financeType === 'receita' && category === 'vendas' && selectedProductId) {
-      if (!selectedProduct) {
-        toast({
-          title: 'Erro',
-          description: 'Selecione um produto',
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      // Validate stock availability
-      if (selectedProduct.quantity <= 0) {
-        toast({
-          title: 'Estoque insuficiente',
-          description: 'Este produto não possui estoque disponível',
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      if (saleQuantity > selectedProduct.quantity) {
-        toast({
-          title: 'Estoque insuficiente',
-          description: `Disponível: ${selectedProduct.quantity} unidade(s)`,
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      finalAmount = selectedProduct.price * saleQuantity;
-      finalDescription = `Venda: ${selectedProduct.name} (${saleQuantity}x)`;
-      productId = selectedProductId;
-    } else if (!amount || !description) {
+    // Validate manual inputs (vendas não são criadas a partir daqui)
+    if (!amount || !description) {
       toast({
         title: 'Erro',
         description: 'Preencha os campos obrigatórios',
@@ -132,54 +87,25 @@ export function FinanceScreen() {
 
     setIsSubmitting(true);
     try {
-      // For product sales, create stock movement first (saída)
-      if (financeType === 'receita' && category === 'vendas' && selectedProductId) {
-        const { error: stockError } = await supabase
-          .from('stock_movements')
-          .insert({
-            product_id: selectedProductId,
-            movement_type: 'saida',
-            quantity: saleQuantity,
-            observation: `Venda registrada via Finanças`
-          });
-        
-        if (stockError) {
-          throw new Error('Falha ao atualizar estoque: ' + stockError.message);
-        }
-        
-        // The trigger on stock_movements will automatically create the financial transaction
-        // So we don't need to create it manually for sales
-        toast({
-          title: 'Venda registrada!',
-          description: `${saleQuantity}x ${selectedProduct?.name} - Estoque atualizado`
-        });
-      } else {
-        // For non-product transactions, add manually
-        await addTransaction.mutateAsync({
-          finance_type: financeType,
-          category,
-          amount: finalAmount,
-          description: finalDescription,
-          notes: notes || undefined,
-          product_id: productId
-        });
+      await addTransaction.mutateAsync({
+        finance_type: financeType,
+        category,
+        amount: parseFloat(amount),
+        description,
+        notes: notes || undefined
+      });
 
-        toast({
-          title: 'Sucesso!',
-          description: financeType === 'receita' ? 'Receita registrada' : 'Despesa registrada'
-        });
-      }
-
-      // Invalidate products query to refresh stock
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({
+        title: 'Sucesso!',
+        description: financeType === 'receita' ? 'Receita registrada' : 'Despesa registrada'
+      });
 
       // Reset form
       setAmount('');
       setDescription('');
       setNotes('');
-      setSelectedProductId('');
-      setSaleQuantity(1);
-      setCategory(financeType === 'receita' ? 'vendas' : 'aluguel');
+      setCategory(financeType === 'receita' ? FINANCE_CATEGORIES.receita[0] : FINANCE_CATEGORIES.despesa[0]);
+
     } catch (error) {
       console.error('Error adding transaction:', error);
       toast({
@@ -404,140 +330,7 @@ export function FinanceScreen() {
                 </Select>
               </div>
 
-              {/* Product Selection for Sales */}
-              {isProductSale && (
-                <div className="space-y-4 p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-800/50">
-                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                    <Receipt className="w-5 h-5" />
-                    <span className="font-medium">Venda de Produto</span>
-                  </div>
-
-                  {/* Product Selection */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Selecione o {config?.labels.product.toLowerCase() || 'produto'}
-                    </Label>
-                    <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                      <SelectTrigger className="h-14 bg-background">
-                        <SelectValue placeholder={`Escolha um ${config?.labels.product.toLowerCase() || 'produto'}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                                {product.photo_url ? (
-                                  <img 
-                                    src={product.photo_url} 
-                                    alt={product.name} 
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <Package className="w-4 h-4 text-muted-foreground" />
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                <span className="font-medium">{product.name}</span>
-                                <span className="text-muted-foreground ml-2">
-                                  R$ {product.price.toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Selected Product Info */}
-                  {selectedProduct && (
-                    <Card className="bg-background">
-                      <CardContent className="p-4 flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
-                          {selectedProduct.photo_url ? (
-                            <img 
-                              src={selectedProduct.photo_url} 
-                              alt={selectedProduct.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Package className="w-7 h-7 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{selectedProduct.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Preço: <span className="font-medium text-foreground">R$ {selectedProduct.price.toFixed(2)}</span>
-                          </p>
-                          <p className={cn(
-                            "text-sm font-medium",
-                            selectedProduct.quantity <= 0 ? "text-destructive" : 
-                            selectedProduct.quantity <= 5 ? "text-orange-500" : "text-emerald-600"
-                          )}>
-                            Estoque: {selectedProduct.quantity} unidade(s)
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Quantity */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Quantidade</Label>
-                    <div className="flex items-center justify-center gap-6">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-12 w-12 rounded-xl"
-                        onClick={() => setSaleQuantity(Math.max(1, saleQuantity - 1))}
-                      >
-                        <Minus className="w-5 h-5" />
-                      </Button>
-                      <Input
-                        type="number"
-                        value={saleQuantity}
-                        onChange={(e) => {
-                          const maxQty = selectedProduct?.quantity || 1;
-                          setSaleQuantity(Math.min(maxQty, Math.max(1, parseInt(e.target.value) || 1)));
-                        }}
-                        className="w-20 h-12 text-center text-xl font-bold bg-background"
-                        max={selectedProduct?.quantity || 1}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-12 w-12 rounded-xl"
-                        onClick={() => {
-                          const maxQty = selectedProduct?.quantity || 1;
-                          setSaleQuantity(Math.min(maxQty, saleQuantity + 1));
-                        }}
-                        disabled={selectedProduct && saleQuantity >= selectedProduct.quantity}
-                      >
-                        <Plus className="w-5 h-5" />
-                      </Button>
-                    </div>
-                    {selectedProduct && selectedProduct.quantity <= 0 && (
-                      <p className="text-sm text-destructive text-center font-medium">
-                        Produto sem estoque disponível
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Total Preview */}
-                  {selectedProduct && (
-                    <div className="text-center p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
-                      <p className="text-sm text-muted-foreground mb-1">Valor Total</p>
-                      <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                        R$ {(selectedProduct.price * saleQuantity).toFixed(2)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Manual Amount/Description for non-product sales */}
+              {/* Manual Amount/Description */}
               {!isProductSale && (
                 <>
                   {/* Amount */}

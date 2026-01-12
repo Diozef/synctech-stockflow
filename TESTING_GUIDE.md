@@ -71,10 +71,10 @@
    - Tipo: Saída
 
 3. Vá para Finanças → Abra o Histórico
-   - [ ] Deve ter uma receita automática
+   - [ ] Deve ter uma receita automática (aparece apenas para vendas à vista ou parcelas marcadas como pagas)
    - [ ] Descrição: "Receita automática de venda: [product_id]"
    - [ ] Valor: R$ 100.00 (50 × 2)
-   - [ ] Categoria: "Vendas"
+   - [ ] Categoria: "Vendas" (não é possível registrar vendas manualmente na Tela de Finanças)
    - [ ] Vinculada ao movimento de estoque
 
 ### ✅ Fase 10: Permissões (RLS)
