@@ -76,6 +76,47 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          business_id: string
+          cpf: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          cpf?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          cpf?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_transactions: {
         Row: {
           amount: number
@@ -136,6 +177,118 @@ export type Database = {
             columns: ["stock_movement_id"]
             isOneToOne: false
             referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installments: {
+        Row: {
+          amount: number
+          business_id: string
+          created_at: string
+          customer_id: string | null
+          due_date: string
+          id: string
+          installment_number: number
+          notes: string | null
+          paid_at: string | null
+          sale_id: string
+          status: Database["public"]["Enums"]["installment_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          business_id: string
+          created_at?: string
+          customer_id?: string | null
+          due_date: string
+          id?: string
+          installment_number: number
+          notes?: string | null
+          paid_at?: string | null
+          sale_id: string
+          status?: Database["public"]["Enums"]["installment_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          created_at?: string
+          customer_id?: string | null
+          due_date?: string
+          id?: string
+          installment_number?: number
+          notes?: string | null
+          paid_at?: string | null
+          sale_id?: string
+          status?: Database["public"]["Enums"]["installment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      low_stock_notifications: {
+        Row: {
+          business_id: string
+          created_at: string
+          current_quantity: number
+          id: string
+          is_read: boolean
+          min_quantity: number
+          product_id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          current_quantity: number
+          id?: string
+          is_read?: boolean
+          min_quantity: number
+          product_id: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          current_quantity?: number
+          id?: string
+          is_read?: boolean
+          min_quantity?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "low_stock_notifications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "low_stock_notifications_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -227,6 +380,111 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          sale_id: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          sale_id: string
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          sale_id?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_id: string | null
+          down_payment_amount: number | null
+          first_due_date: string | null
+          has_down_payment: boolean
+          id: string
+          installments_count: number
+          notes: string | null
+          payment_type: Database["public"]["Enums"]["sale_payment_type"]
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_id?: string | null
+          down_payment_amount?: number | null
+          first_due_date?: string | null
+          has_down_payment?: boolean
+          id?: string
+          installments_count?: number
+          notes?: string | null
+          payment_type?: Database["public"]["Enums"]["sale_payment_type"]
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_id?: string | null
+          down_payment_amount?: number | null
+          first_due_date?: string | null
+          has_down_payment?: boolean
+          id?: string
+          installments_count?: number
+          notes?: string | null
+          payment_type?: Database["public"]["Enums"]["sale_payment_type"]
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
@@ -332,7 +590,9 @@ export type Database = {
         | "manutencao"
         | "outro"
       finance_type: "receita" | "despesa"
+      installment_status: "pendente" | "pago" | "atrasado" | "cancelado"
       movement_type: "entrada" | "saida"
+      sale_payment_type: "avista" | "parcelado"
       size_category: "letras" | "numeracao" | "calcados" | "personalizado"
       subscription_status: "trial" | "active" | "cancelled" | "expired"
     }
@@ -476,7 +736,9 @@ export const Constants = {
         "outro",
       ],
       finance_type: ["receita", "despesa"],
+      installment_status: ["pendente", "pago", "atrasado", "cancelado"],
       movement_type: ["entrada", "saida"],
+      sale_payment_type: ["avista", "parcelado"],
       size_category: ["letras", "numeracao", "calcados", "personalizado"],
       subscription_status: ["trial", "active", "cancelled", "expired"],
     },
