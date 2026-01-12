@@ -197,6 +197,31 @@ export function useBusinessData() {
     
     if (error) throw error;
     setProducts(prev => [data, ...prev]);
+
+    // Se o produto foi cadastrado com saldo inicial (> 0), registrar uma movimentação de entrada
+    try {
+      if (data && data.quantity && data.quantity > 0) {
+        const { data: movementData, error: movementError } = await supabase
+          .from('stock_movements')
+          .insert({
+            product_id: data.id,
+            movement_type: 'entrada',
+            quantity: data.quantity,
+            observation: 'Saldo inicial ao cadastrar produto',
+          })
+          .select()
+          .single();
+
+        if (movementError) {
+          console.error('Error creating initial stock movement:', movementError);
+        } else if (movementData) {
+          setMovements(prev => [movementData, ...prev]);
+        }
+      }
+    } catch (err) {
+      console.error('Error creating initial stock movement:', err);
+    }
+
     return data;
   };
 
