@@ -122,7 +122,7 @@ npm run dev
 6. Esperado:
    ✅ Uma receita automática apareceu
    ✅ Valor: R$ 300.00 (100 × 3)
-   ✅ Categoria: Vendas
+   ✅ Categoria: Vendas (aparece apenas para vendas à vista e parcelas pagas)
    ✅ Descrição: "Receita automática de venda: ..."
 ```
 

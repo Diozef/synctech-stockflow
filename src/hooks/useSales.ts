@@ -268,6 +268,7 @@ export const useSales = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['installments'] });
+      queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
     }
   });
 

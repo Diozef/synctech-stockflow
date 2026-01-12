@@ -111,10 +111,10 @@ npm run dev
    - Clicar "Registrar"
 
 3. Voltar para "Finanças" → Abrir "Histórico"
-   - ✅ DEVE APARECER UMA RECEITA AUTOMÁTICA!
+   - ✅ DEVE APARECER UMA RECEITA AUTOMÁTICA (apenas para vendas à vista ou parcelas marcadas como pagas)!
    - Descrição: "Receita automática de venda: ..."
    - Valor: R$ 100.00 (50 × 2)
-   - Categoria: Vendas
+   - Categoria: Vendas (não é possível criar vendas manualmente via Tela de Finanças)
 ```
 
 **Teste 4 - Filtros**

@@ -27,7 +27,8 @@ export interface FinancialSummary {
 }
 
 const FINANCE_CATEGORIES: Record<FinanceType, FinanceCategory[]> = {
-  receita: ['vendas', 'devolucao', 'outro'],
+  // Removemos 'vendas' daqui: vendas agora são tratadas via tabela `sales` / `installments`
+  receita: ['devolucao', 'outro'],
   despesa: ['aluguel', 'energia', 'agua', 'internet', 'folha_pagamento', 'marketing', 'manutencao', 'outro']
 };
 
