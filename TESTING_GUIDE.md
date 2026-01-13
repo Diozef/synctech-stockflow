@@ -15,7 +15,7 @@
 - [ ] FinanceScreen.tsx está em `src/screens/`
 - [ ] useFinance.ts está em `src/hooks/`
 - [ ] App.tsx tem rota `/app/finance`
-- [ ] BottomNav.tsx tem ícone de Finanças
+- [x] BottomNav.tsx tem ícone de Finanças
 - [ ] Projeto compila sem erros
 
 ### ✅ Fase 3: Navegação
