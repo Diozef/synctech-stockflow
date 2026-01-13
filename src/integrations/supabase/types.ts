@@ -126,6 +126,7 @@ export type Database = {
           description: string | null
           finance_type: Database["public"]["Enums"]["finance_type"]
           id: string
+          installment_id: string | null
           notes: string | null
           product_id: string | null
           stock_movement_id: string | null
@@ -139,6 +140,7 @@ export type Database = {
           description?: string | null
           finance_type: Database["public"]["Enums"]["finance_type"]
           id?: string
+          installment_id?: string | null
           notes?: string | null
           product_id?: string | null
           stock_movement_id?: string | null
@@ -152,6 +154,7 @@ export type Database = {
           description?: string | null
           finance_type?: Database["public"]["Enums"]["finance_type"]
           id?: string
+          installment_id?: string | null
           notes?: string | null
           product_id?: string | null
           stock_movement_id?: string | null
@@ -163,6 +166,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "installments"
             referencedColumns: ["id"]
           },
           {

@@ -174,8 +174,6 @@ export function FinanceScreen() {
     setFinanceType(type);
     const defaultCategory = FINANCE_CATEGORIES[type][0];
     setCategory(defaultCategory);
-    setSelectedProductId('');
-    setSaleQuantity(1);
     setAmount('');
     setDescription('');
   };
