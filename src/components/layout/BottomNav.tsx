@@ -19,7 +19,7 @@
 
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Package, ArrowUpDown, BarChart3, Settings, BookOpen } from 'lucide-react';
+import { Home, Package, ArrowUpDown, BarChart3, Settings, BookOpen, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
@@ -42,6 +42,7 @@ export function BottomNav() {
     { icon: Package, label: 'Estoque', path: '/app/products' },
     { icon: ArrowUpDown, label: 'Movimentar', path: '/app/movements' },
     { icon: BookOpen, label: 'Caderninho', path: '/app/caderninho' },
+    { icon: Wallet, label: 'Finanças', path: '/app/finance' },
     { icon: BarChart3, label: 'Relatórios', path: '/app/reports' },
     { icon: Settings, label: 'Ajustes', path: '/app/settings' },
   ];

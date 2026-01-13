@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBusinessData } from '@/hooks/useBusiness';
 import { getNicheConfig } from '@/utils/nicheConfig';
 import { 
+  Plus,
   X, 
   DollarSign, 
   Loader2, 
@@ -187,7 +188,7 @@ export function FinanceScreen() {
     );
   }
 
-  const isProductSale = financeType === 'receita' && category === 'vendas';
+
 
   return (
     <MobileLayout>
@@ -311,10 +312,6 @@ export function FinanceScreen() {
                   value={category} 
                   onValueChange={(value) => {
                     setCategory(value as FinanceCategory);
-                    if (value !== 'vendas') {
-                      setSelectedProductId('');
-                      setSaleQuantity(1);
-                    }
                   }}
                 >
                   <SelectTrigger className="h-12">
@@ -331,7 +328,6 @@ export function FinanceScreen() {
               </div>
 
               {/* Manual Amount/Description */}
-              {!isProductSale && (
                 <>
                   {/* Amount */}
                   <div className="space-y-2">
@@ -363,7 +359,6 @@ export function FinanceScreen() {
                     />
                   </div>
                 </>
-              )}
 
               {/* Notes */}
               <div className="space-y-2">
@@ -388,7 +383,7 @@ export function FinanceScreen() {
                     ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/25" 
                     : "bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-600/25"
                 )}
-                disabled={isSubmitting || (isProductSale ? !selectedProductId : (!amount || !description))}
+                disabled={isSubmitting || (!amount || !description)}
               >
                 {isSubmitting ? (
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
